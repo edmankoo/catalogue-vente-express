@@ -1,0 +1,260 @@
+# CLAUDE.md
+
+## Projet
+Catalogue Vente Express
+
+Application PWA permettant à un vendeur unique de publier des produits et à ses clients de les consulter, réserver et suivre leur état en temps réel.
+
+---
+
+## Objectif fonctionnel
+
+- Un vendeur unique administre toute la plateforme
+- Les clients créent un compte pour accéder au catalogue
+- Les produits peuvent être réservés instantanément
+- Une réservation bloque automatiquement le produit pendant 72h
+- L’administrateur peut gérer manuellement les réservations (valider, prolonger, annuler)
+- Le client est notifié des changements de statut
+- L’administrateur peut contacter directement les clients (téléphone / WhatsApp)
+
+---
+
+## Rôles
+
+### ADMIN (vendeur unique)
+- CRUD produits
+- gestion des réservations
+- validation des ventes
+- prolongation ou annulation des réservations
+- accès aux informations clients
+- gestion du stock et du catalogue
+
+### CLIENT
+- inscription / connexion obligatoire
+- consultation du catalogue
+- réservation de produits
+- suivi des réservations
+- réception de notifications
+
+---
+
+## Stack technique
+
+### Frontend
+- React (Vite)
+- TypeScript
+- Tailwind CSS
+- React Router
+- PWA (manifest + service worker)
+
+### Backend
+- Supabase
+
+### Services utilisés
+- Supabase Auth (authentification)
+- Supabase PostgreSQL (base de données)
+- Supabase Storage (images produits)
+- Supabase Realtime (mises à jour temps réel)
+- Supabase Edge Functions (tâches automatisées)
+
+---
+
+## Architecture
+
+Frontend → Supabase API → PostgreSQL / Storage / Auth
+
+Application mobile-first, optimisée PWA installable sur téléphone.
+
+---
+
+## Règles métier importantes
+
+### Produits
+- Un produit possède un stock
+- Si stock = 0 → produit indisponible
+- Les images sont stockées dans Supabase Storage
+
+---
+
+### Réservations
+- Une réservation est créée instantanément
+- Durée de validité par défaut : 72 heures
+- Pendant cette période :
+  - le produit est bloqué
+  - le stock est réservé
+
+---
+
+### Expiration automatique
+- Si aucune action admin dans les 72h :
+  - réservation = EXPIRED
+  - produit redevient disponible
+  - stock rétabli automatiquement
+  - notification envoyée au client
+
+---
+
+### Gestion admin
+L’admin peut à tout moment :
+- contacter un client (téléphone / WhatsApp)
+- valider une vente
+- prolonger une réservation
+- annuler une réservation
+
+---
+
+## Base de données (Supabase)
+
+### users
+- id (uuid)
+- email
+- first_name
+- last_name
+- phone
+- role (ADMIN | CLIENT)
+- created_at
+
+---
+
+### products
+- id (uuid)
+- title
+- description
+- price
+- stock
+- status (AVAILABLE | RESERVED | SOLD | ARCHIVED)
+- created_at
+- updated_at
+
+---
+
+### product_images
+- id
+- product_id
+- url
+- position
+
+---
+
+### reservations
+- id
+- product_id
+- user_id
+- status (NEW, CONTACTED, NEGOTIATION, CONFIRMED, CANCELLED, EXPIRED)
+- reserved_at
+- expires_at
+- admin_notes
+
+---
+
+### notifications
+- id
+- user_id
+- title
+- message
+- type (INFO | WARNING | SUCCESS)
+- read
+- created_at
+
+---
+
+## Storage
+
+Bucket : product-images
+
+Structure :
+- product-images/{productId}/image.jpg
+
+Accès :
+- upload : ADMIN uniquement
+- lecture : CLIENT + ADMIN
+
+---
+
+## Expiration automatique
+
+Une tâche planifiée (Edge Function Supabase) doit :
+
+- vérifier les réservations expirées
+- changer leur statut en EXPIRED
+- remettre le stock du produit
+- envoyer une notification au client
+
+---
+
+## Frontend structure
+
+src/
+- app/
+- features/
+  - auth/
+  - products/
+  - reservations/
+  - dashboard/
+  - notifications/
+- components/
+- hooks/
+- lib/
+- styles/
+
+---
+
+## Conventions de code
+
+- TypeScript strict obligatoire
+- aucun `any`
+- composants React fonctionnels uniquement
+- Tailwind CSS uniquement pour le style
+- architecture modulaire par feature
+- code orienté réutilisation
+
+---
+
+## Sécurité
+
+- authentification obligatoire via Supabase
+- RLS (Row Level Security) activé
+- accès admin protégé par rôle
+- aucune donnée sensible exposée côté frontend
+- validation côté client + backend
+
+---
+
+## Performance
+
+- images compressées automatiquement
+- lazy loading des médias
+- pagination catalogue
+- cache des requêtes API
+
+---
+
+## Contraintes importantes pour Claude
+
+- ne jamais contourner Supabase Auth
+- ne jamais désactiver RLS
+- respecter strictement la séparation frontend/backend
+- privilégier une architecture simple et évolutive
+- produire du code directement exploitable en production
+- mobile-first obligatoire
+
+---
+
+## Objectif MVP
+
+- authentification
+- catalogue produits
+- réservation
+- dashboard admin
+- notifications
+- intégration WhatsApp / téléphone
+
+---
+
+## Évolutions futures
+
+- paiement en ligne
+- IA pour descriptions produits
+- multi-admin
+- marketplace multi-vendeurs
+- application mobile native
