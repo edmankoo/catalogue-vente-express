@@ -53,9 +53,16 @@ export default function ProductDetailPage() {
     }
     setReserving(true)
     setReserveError(null)
-    const { error } = await supabase
-      .from('reservations')
-      .insert({ product_id: product!.id, user_id: user.id })
+    let error: { message: string } | null
+    try {
+      ;({ error } = await supabase
+        .from('reservations')
+        .insert({ product_id: product!.id, user_id: user.id }))
+    } catch {
+      setReserving(false)
+      setReserveError('Connexion au serveur impossible. Réessaie.')
+      return
+    }
     setReserving(false)
     if (error) {
       setReserveError(error.message)

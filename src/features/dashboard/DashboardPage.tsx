@@ -83,16 +83,19 @@ export default function DashboardPage() {
     e.preventDefault()
     if (!title.trim() || !price) return
     setSaving(true)
-    await supabase.from('products').insert({
-      title: title.trim(),
-      price: Number(price),
-      stock: 1,
-      status: 'AVAILABLE',
-      category,
-      image_url: 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit',
-      description: '',
-    })
-    setSaving(false)
+    try {
+      await supabase.from('products').insert({
+        title: title.trim(),
+        price: Number(price),
+        stock: 1,
+        status: 'AVAILABLE',
+        category,
+        image_url: 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit',
+        description: '',
+      })
+    } finally {
+      setSaving(false)
+    }
     setTitle('')
     setPrice('')
     setShowForm(false)

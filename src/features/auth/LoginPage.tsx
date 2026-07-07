@@ -23,10 +23,17 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
 
-    const result =
-      mode === 'connexion'
-        ? await signIn(email, password)
-        : await signUp(email, password, { firstName, lastName, phone })
+    let result: { error: string | null }
+    try {
+      result =
+        mode === 'connexion'
+          ? await signIn(email, password)
+          : await signUp(email, password, { firstName, lastName, phone })
+    } catch {
+      setLoading(false)
+      setError('Connexion au serveur impossible. Réessaie.')
+      return
+    }
 
     setLoading(false)
 
