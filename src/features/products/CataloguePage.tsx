@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { CATEGORIES, MOCK_PRODUCTS } from '../../lib/mockData'
 import ProductCard from '../../components/ProductCard'
 
@@ -45,9 +46,12 @@ export default function CataloguePage() {
             />
           </div>
 
-          <button className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors">
+          <Link
+            to="/connexion"
+            className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
+          >
             Connexion
-          </button>
+          </Link>
         </div>
 
         {/* Barre de catégories */}
