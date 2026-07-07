@@ -10,7 +10,19 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+build
 *.local
+
+# Environment variables (clés secrètes Supabase, etc.)
+.env
+.env.*
+!.env.example
+
+# Expo
+.expo
+
+# Claude Code
+.claude
 
 # Editor directories and files
 .vscode/*
