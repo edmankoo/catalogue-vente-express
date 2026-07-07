@@ -1,5 +1,14 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import CataloguePage from './features/products/CataloguePage'
+import ProductDetailPage from './features/products/ProductDetailPage'
 
 export default function App() {
-  return <CataloguePage />
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<CataloguePage />} />
+        <Route path="/produit/:id" element={<ProductDetailPage />} />
+      </Routes>
+    </BrowserRouter>
+  )
 }

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { Product } from '../lib/mockData'
 
 const STATUS_CONFIG = {
@@ -14,7 +15,10 @@ export default function ProductCard({ product }: Props) {
   const status = STATUS_CONFIG[product.status]
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer border border-gray-100">
+    <Link
+      to={`/produit/${product.id}`}
+      className="block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer border border-gray-100"
+    >
       <div className="relative">
         <img
           src={product.image}
@@ -42,6 +46,6 @@ export default function ProductCard({ product }: Props) {
           <span className="text-xs text-gray-400">{product.createdAt}</span>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }
