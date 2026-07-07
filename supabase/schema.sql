@@ -1,7 +1,17 @@
 -- ============================================================
 -- Catalogue Vente Express — schéma initial
 -- À coller en une fois dans : Dashboard Supabase > SQL Editor > Run
+-- Ce script peut être relancé sans risque (il nettoie d'abord tout
+-- ce qu'un essai précédent aurait pu créer).
 -- ============================================================
+
+-- ---------- Nettoyage (sûr même si rien n'existe encore) ----------
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user();
+drop table if exists public.reservations cascade;
+drop table if exists public.products cascade;
+drop function if exists public.is_admin();
+drop table if exists public.users cascade;
 
 create extension if not exists "pgcrypto";
 
