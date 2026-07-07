@@ -1,27 +1,37 @@
 import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { CATEGORIES, MOCK_PRODUCTS } from '../../lib/mockData'
+import { Link, useNavigate } from 'react-router-dom'
+import { CATEGORIES } from '../../lib/products'
 import ProductCard from '../../components/ProductCard'
+import { useAuth } from '../auth/AuthContext'
+import { useProducts } from './useProducts'
 
 export default function CataloguePage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [search, setSearch] = useState('')
+  const { user, profile, signOut } = useAuth()
+  const navigate = useNavigate()
+  const { products, loading, error } = useProducts()
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/')
+  }
 
   const filtered = useMemo(() => {
-    return MOCK_PRODUCTS.filter((p) => {
+    return products.filter((p) => {
       const matchCat = activeCategory === 'all' || p.category === activeCategory
       const matchSearch = p.title.toLowerCase().includes(search.toLowerCase())
       return matchCat && matchSearch
     })
-  }, [activeCategory, search])
+  }, [products, activeCategory, search])
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = { all: MOCK_PRODUCTS.length }
-    MOCK_PRODUCTS.forEach((p) => {
+    const map: Record<string, number> = { all: products.length }
+    products.forEach((p) => {
       map[p.category] = (map[p.category] ?? 0) + 1
     })
     return map
-  }, [])
+  }, [products])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -46,12 +56,26 @@ export default function CataloguePage() {
             />
           </div>
 
-          <Link
-            to="/connexion"
-            className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
-          >
-            Connexion
-          </Link>
+          {user ? (
+            <div className="shrink-0 flex items-center gap-2">
+              <span className="text-sm text-gray-600 hidden sm:inline">
+                Bonjour {profile?.first_name || 'toi'}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2"
+              >
+                Déconnexion
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/connexion"
+              className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
+            >
+              Connexion
+            </Link>
+          )}
         </div>
 
         {/* Barre de catégories */}
@@ -104,7 +128,18 @@ export default function CataloguePage() {
         </div>
 
         {/* Grille de produits */}
-        {filtered.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-20 text-gray-400">
+            <p className="text-4xl mb-3">⏳</p>
+            <p className="font-medium">Chargement du catalogue...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-20 text-red-400">
+            <p className="text-4xl mb-3">⚠️</p>
+            <p className="font-medium">Impossible de charger les produits</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {filtered.map((product) => (
               <ProductCard key={product.id} product={product} />

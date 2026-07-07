@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import type { Product } from '../lib/mockData'
+import type { Product } from '../lib/products'
 
 const STATUS_CONFIG = {
   AVAILABLE: { label: 'Disponible', classes: 'bg-green-100 text-green-700' },

@@ -1,7 +1,10 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { MOCK_PRODUCTS, CATEGORIES, type Product } from '../../lib/mockData'
-import { MOCK_RESERVATIONS, type ReservationStatus } from '../../lib/mockReservations'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Link, Navigate } from 'react-router-dom'
+import { CATEGORIES } from '../../lib/products'
+import type { ReservationStatus } from '../../lib/reservationTypes'
+import { useAuth } from '../auth/AuthContext'
+import { useProducts } from '../products/useProducts'
+import { supabase } from '../../lib/supabaseClient'
 
 type Tab = 'produits' | 'reservations'
 
@@ -20,15 +23,54 @@ const RESERVATION_STATUS_CONFIG: Record<ReservationStatus, { label: string; clas
   EXPIRED: { label: 'Expirée', classes: 'bg-red-100 text-red-600' },
 }
 
-let nextId = 1000
+interface ReservationRow {
+  id: string
+  product_id: string
+  status: ReservationStatus
+  expires_at: string
+  products: { title: string } | null
+  users: { first_name: string | null; last_name: string | null; phone: string | null; email: string } | null
+}
 
 export default function DashboardPage() {
+  const { user, profile, loading: authLoading, profileLoading } = useAuth()
+  const { products, loading: productsLoading, refetch } = useProducts()
+
   const [tab, setTab] = useState<Tab>('produits')
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS)
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [price, setPrice] = useState('')
   const [category, setCategory] = useState(CATEGORIES[1]?.id ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const [reservations, setReservations] = useState<ReservationRow[]>([])
+  const [reservationsLoading, setReservationsLoading] = useState(true)
+
+  const fetchReservations = useCallback(async () => {
+    setReservationsLoading(true)
+    const { data } = await supabase
+      .from('reservations')
+      .select('id, product_id, status, expires_at, products(title), users(first_name, last_name, phone, email)')
+      .order('reserved_at', { ascending: false })
+    setReservations((data as unknown as ReservationRow[]) ?? [])
+    setReservationsLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'reservations') fetchReservations()
+  }, [tab, fetchReservations])
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">
+        Chargement...
+      </div>
+    )
+  }
+
+  if (!user || profile?.role !== 'ADMIN') {
+    return <Navigate to="/connexion" replace />
+  }
 
   const stats = {
     total: products.length,
@@ -37,28 +79,43 @@ export default function DashboardPage() {
     sold: products.filter((p) => p.status === 'SOLD').length,
   }
 
-  function handleAddProduct(e: FormEvent) {
+  async function handleAddProduct(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !price) return
-    const newProduct: Product = {
-      id: String(nextId++),
+    setSaving(true)
+    await supabase.from('products').insert({
       title: title.trim(),
       price: Number(price),
       stock: 1,
       status: 'AVAILABLE',
       category,
-      image: 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit',
+      image_url: 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit',
       description: '',
-      createdAt: new Date().toISOString().slice(0, 10),
-    }
-    setProducts((prev) => [newProduct, ...prev])
+    })
+    setSaving(false)
     setTitle('')
     setPrice('')
     setShowForm(false)
+    refetch()
   }
 
-  function handleDelete(id: string) {
-    setProducts((prev) => prev.filter((p) => p.id !== id))
+  async function handleDelete(id: string) {
+    await supabase.from('products').delete().eq('id', id)
+    refetch()
+  }
+
+  async function handleValidate(reservation: ReservationRow) {
+    await supabase.from('reservations').update({ status: 'CONFIRMED' }).eq('id', reservation.id)
+    await supabase.from('products').update({ status: 'SOLD' }).eq('id', reservation.product_id)
+    fetchReservations()
+    refetch()
+  }
+
+  async function handleCancel(reservation: ReservationRow) {
+    await supabase.from('reservations').update({ status: 'CANCELLED' }).eq('id', reservation.id)
+    await supabase.from('products').update({ status: 'AVAILABLE' }).eq('id', reservation.product_id)
+    fetchReservations()
+    refetch()
   }
 
   return (
@@ -163,9 +220,10 @@ export default function DashboardPage() {
                 </div>
                 <button
                   type="submit"
-                  className="bg-gray-900 hover:bg-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  disabled={saving}
+                  className="bg-gray-900 hover:bg-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
                 >
-                  Enregistrer
+                  {saving ? '...' : 'Enregistrer'}
                 </button>
               </form>
             )}
@@ -210,13 +268,10 @@ export default function DashboardPage() {
                   })}
                 </tbody>
               </table>
-              {products.length === 0 && (
+              {!productsLoading && products.length === 0 && (
                 <p className="text-center text-gray-400 py-8 text-sm">Aucun produit pour le moment.</p>
               )}
             </div>
-            <p className="text-xs text-gray-400 px-4 py-3">
-              Données locales à cette session — la vraie gestion arrivera avec le branchement Supabase.
-            </p>
           </div>
         )}
 
@@ -234,36 +289,55 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {MOCK_RESERVATIONS.map((r) => {
-                    const product = products.find((p) => p.id === r.productId)
+                  {reservations.map((r) => {
                     const status = RESERVATION_STATUS_CONFIG[r.status]
+                    const clientName = [r.users?.first_name, r.users?.last_name].filter(Boolean).join(' ') || r.users?.email
+                    const isPending = r.status === 'NEW' || r.status === 'CONTACTED' || r.status === 'NEGOTIATION'
                     return (
                       <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="px-4 py-2.5">
-                          <p className="text-gray-800 font-medium">{r.clientName}</p>
-                          <p className="text-xs text-gray-400">{r.clientPhone}</p>
+                          <p className="text-gray-800 font-medium">{clientName}</p>
+                          {r.users?.phone && <p className="text-xs text-gray-400">{r.users.phone}</p>}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-600 line-clamp-1">{product?.title ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-600 line-clamp-1">{r.products?.title ?? '—'}</td>
                         <td className="px-4 py-2.5">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
                             {status.label}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-gray-500">{r.expiresAt}</td>
+                        <td className="px-4 py-2.5 text-gray-500">{r.expires_at.slice(0, 10)}</td>
                         <td className="px-4 py-2.5 text-right space-x-2 whitespace-nowrap">
-                          <button className="text-xs text-gray-500 hover:text-gray-800 font-medium">Contacter</button>
-                          <button className="text-xs text-green-600 hover:text-green-800 font-medium">Valider</button>
-                          <button className="text-xs text-red-500 hover:text-red-700 font-medium">Annuler</button>
+                          {r.users?.phone && (
+                            <a href={`tel:${r.users.phone}`} className="text-xs text-gray-500 hover:text-gray-800 font-medium">
+                              Contacter
+                            </a>
+                          )}
+                          {isPending && (
+                            <>
+                              <button
+                                onClick={() => handleValidate(r)}
+                                className="text-xs text-green-600 hover:text-green-800 font-medium"
+                              >
+                                Valider
+                              </button>
+                              <button
+                                onClick={() => handleCancel(r)}
+                                className="text-xs text-red-500 hover:text-red-700 font-medium"
+                              >
+                                Annuler
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
+              {!reservationsLoading && reservations.length === 0 && (
+                <p className="text-center text-gray-400 py-8 text-sm">Aucune réservation pour le moment.</p>
+              )}
             </div>
-            <p className="text-xs text-gray-400 px-4 py-3">
-              Actions non actives pour l'instant — elles seront branchées à Supabase (auto-expiration à 72h incluse).
-            </p>
           </div>
         )}
       </main>

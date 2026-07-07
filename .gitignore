@@ -12,6 +12,7 @@ dist
 dist-ssr
 build
 *.local
+*.tsbuildinfo
 
 # Environment variables (clés secrètes Supabase, etc.)
 .env
