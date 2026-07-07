@@ -4,6 +4,7 @@ export interface Product {
   id: string
   title: string
   price: number
+  stock: number
   status: ProductStatus
   category: string
   image: string
@@ -31,6 +32,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '1',
     title: 'iPhone 13 Pro — 256 Go',
     price: 550,
+    stock: 1,
     status: 'AVAILABLE',
     category: 'electronique',
     image: 'https://placehold.co/400x300/e8f0fe/4285f4?text=iPhone+13+Pro',
@@ -41,6 +43,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '2',
     title: 'Canapé 3 places tissu gris',
     price: 180,
+    stock: 1,
     status: 'RESERVED',
     category: 'maison',
     image: 'https://placehold.co/400x300/f3e8ff/9333ea?text=Canapé+gris',
@@ -51,6 +54,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '3',
     title: 'Veste en cuir noir — Taille M',
     price: 65,
+    stock: 2,
     status: 'AVAILABLE',
     category: 'vetements',
     image: 'https://placehold.co/400x300/fef3c7/d97706?text=Veste+cuir',
@@ -61,6 +65,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '4',
     title: 'Perceuse Bosch sans fil',
     price: 85,
+    stock: 1,
     status: 'AVAILABLE',
     category: 'outillage',
     image: 'https://placehold.co/400x300/dcfce7/16a34a?text=Perceuse+Bosch',
@@ -71,6 +76,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '5',
     title: 'Machine à café Nespresso',
     price: 45,
+    stock: 0,
     status: 'SOLD',
     category: 'petit-electromenager',
     image: 'https://placehold.co/400x300/fee2e2/dc2626?text=Nespresso',
@@ -81,6 +87,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '6',
     title: 'Vélo de route 54cm — Shimano',
     price: 320,
+    stock: 1,
     status: 'AVAILABLE',
     category: 'sport',
     image: 'https://placehold.co/400x300/e0f2fe/0284c7?text=Vélo+route',
@@ -91,6 +98,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '7',
     title: 'MacBook Air M1 — 8 Go / 256 Go',
     price: 750,
+    stock: 1,
     status: 'AVAILABLE',
     category: 'informatique',
     image: 'https://placehold.co/400x300/f0fdf4/22c55e?text=MacBook+Air',
@@ -101,6 +109,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '8',
     title: 'LEGO Technic — Camion 42128',
     price: 55,
+    stock: 3,
     status: 'AVAILABLE',
     category: 'jouets',
     image: 'https://placehold.co/400x300/fff7ed/ea580c?text=LEGO+Technic',
@@ -111,6 +120,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '9',
     title: 'Lave-linge Samsung 8kg',
     price: 230,
+    stock: 1,
     status: 'RESERVED',
     category: 'electromenager',
     image: 'https://placehold.co/400x300/f8fafc/64748b?text=Lave-linge',
@@ -121,6 +131,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '10',
     title: 'Jantes alu 205/55 R16 — x4',
     price: 140,
+    stock: 1,
     status: 'AVAILABLE',
     category: 'auto',
     image: 'https://placehold.co/400x300/fafaf9/737373?text=Jantes+alu',
@@ -131,6 +142,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '11',
     title: 'Service vaisselle 12 pièces',
     price: 30,
+    stock: 1,
     status: 'AVAILABLE',
     category: 'maison',
     image: 'https://placehold.co/400x300/fdf4ff/c026d3?text=Vaisselle',
@@ -141,6 +153,7 @@ export const MOCK_PRODUCTS: Product[] = [
     id: '12',
     title: 'Sneakers Nike Air Max 90 — 42',
     price: 70,
+    stock: 1,
     status: 'AVAILABLE',
     category: 'vetements',
     image: 'https://placehold.co/400x300/eff6ff/3b82f6?text=Nike+Air+Max',

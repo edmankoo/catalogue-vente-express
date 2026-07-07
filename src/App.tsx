@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import CataloguePage from './features/products/CataloguePage'
 import ProductDetailPage from './features/products/ProductDetailPage'
 import LoginPage from './features/auth/LoginPage'
+import DashboardPage from './features/dashboard/DashboardPage'
 
 export default function App() {
   return (
@@ -10,6 +11,7 @@ export default function App() {
         <Route path="/" element={<CataloguePage />} />
         <Route path="/produit/:id" element={<ProductDetailPage />} />
         <Route path="/connexion" element={<LoginPage />} />
+        <Route path="/admin" element={<DashboardPage />} />
       </Routes>
     </BrowserRouter>
   )

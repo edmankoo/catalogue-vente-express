@@ -117,6 +117,12 @@ export default function CataloguePage() {
             <p className="text-sm mt-1">Revenez bientôt !</p>
           </div>
         )}
+
+        <div className="text-center mt-10">
+          <Link to="/admin" className="text-xs text-gray-300 hover:text-gray-500">
+            Espace vendeur
+          </Link>
+        </div>
       </main>
     </div>
   )
