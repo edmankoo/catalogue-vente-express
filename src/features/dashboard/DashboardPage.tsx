@@ -41,7 +41,9 @@ export default function DashboardPage() {
   const [title, setTitle] = useState('')
   const [price, setPrice] = useState('')
   const [category, setCategory] = useState(CATEGORIES[1]?.id ?? '')
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const [reservations, setReservations] = useState<ReservationRow[]>([])
   const [reservationsLoading, setReservationsLoading] = useState(true)
@@ -83,21 +85,40 @@ export default function DashboardPage() {
     e.preventDefault()
     if (!title.trim() || !price) return
     setSaving(true)
+    setFormError(null)
     try {
+      let imageUrl = 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit'
+
+      if (imageFile) {
+        const path = `${Date.now()}-${imageFile.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(path, imageFile)
+        if (uploadError) {
+          setFormError(uploadError.message)
+          return
+        }
+        imageUrl = supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl
+      }
+
       await supabase.from('products').insert({
         title: title.trim(),
         price: Number(price),
         stock: 1,
         status: 'AVAILABLE',
         category,
-        image_url: 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit',
+        image_url: imageUrl,
         description: '',
       })
+    } catch {
+      setFormError('Connexion au serveur impossible. Réessaie.')
+      return
     } finally {
       setSaving(false)
     }
     setTitle('')
     setPrice('')
+    setImageFile(null)
     setShowForm(false)
     refetch()
   }
@@ -221,6 +242,16 @@ export default function DashboardPage() {
                     ))}
                   </select>
                 </div>
+                <div className="w-56">
+                  <label className="text-xs font-medium text-gray-500">Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                    className="w-full mt-1 text-xs text-gray-500 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:text-xs"
+                  />
+                </div>
+                {formError && <p className="text-xs text-red-500 w-full">{formError}</p>}
                 <button
                   type="submit"
                   disabled={saving}
