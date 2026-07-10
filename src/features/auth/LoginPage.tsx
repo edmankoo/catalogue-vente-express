@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('connexion')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
@@ -21,6 +22,12 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (mode === 'inscription' && password !== passwordConfirm) {
+      setError('Les deux mots de passe ne correspondent pas.')
+      return
+    }
+
     setLoading(true)
 
     let result: { error: string | null }
@@ -163,6 +170,20 @@ export default function LoginPage() {
                 className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-orange-400"
               />
             </div>
+
+            {mode === 'inscription' && (
+              <div>
+                <label className="text-xs font-medium text-gray-500">Confirmer le mot de passe</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-orange-400"
+                />
+              </div>
+            )}
 
             {error && <p className="text-xs text-red-500 -mt-1">{error}</p>}
 

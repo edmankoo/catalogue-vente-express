@@ -123,23 +123,33 @@ export default function ProductDetailPage() {
 
             {reserveError && <p className="text-xs text-red-500 mt-3">{reserveError}</p>}
 
-            <button
-              disabled={!isAvailable || reserving || reserved}
-              onClick={handleReserve}
-              className={`w-full mt-6 py-3 rounded-full font-semibold text-sm transition-colors ${
-                isAvailable && !reserved
-                  ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {reserved
-                ? 'Réservation envoyée ✓'
-                : reserving
-                  ? '...'
-                  : isAvailable
-                    ? 'Réserver cet article'
-                    : status.label}
-            </button>
+            {reserved ? (
+              <div className="mt-6 rounded-xl bg-green-50 border border-green-100 p-4 text-center">
+                <p className="font-semibold text-green-700">Réservation envoyée ✓</p>
+                <p className="text-sm text-green-600 mt-1">
+                  Le vendeur va te contacter par téléphone pour confirmer la vente. Ton article reste
+                  réservé pendant 72h.
+                </p>
+                <Link
+                  to="/mes-reservations"
+                  className="mt-3 inline-block text-sm font-medium text-green-700 underline"
+                >
+                  Suivre mes réservations
+                </Link>
+              </div>
+            ) : (
+              <button
+                disabled={!isAvailable || reserving}
+                onClick={handleReserve}
+                className={`w-full mt-6 py-3 rounded-full font-semibold text-sm transition-colors ${
+                  isAvailable
+                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {reserving ? '...' : isAvailable ? 'Réserver cet article' : status.label}
+              </button>
+            )}
           </div>
         </div>
       </main>
