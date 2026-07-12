@@ -28,8 +28,11 @@ interface ReservationRow {
   product_id: string
   status: ReservationStatus
   expires_at: string
-  products: { title: string } | null
-  users: { first_name: string | null; last_name: string | null; phone: string | null; email: string } | null
+  product_title: string | null
+  client_first_name: string | null
+  client_last_name: string | null
+  client_phone: string | null
+  client_email: string | null
 }
 
 export default function DashboardPage() {
@@ -50,11 +53,8 @@ export default function DashboardPage() {
 
   const fetchReservations = useCallback(async () => {
     setReservationsLoading(true)
-    const { data } = await supabase
-      .from('reservations')
-      .select('id, product_id, status, expires_at, products(title), users(first_name, last_name, phone, email)')
-      .order('reserved_at', { ascending: false })
-    setReservations((data as unknown as ReservationRow[]) ?? [])
+    const { data } = await supabase.rpc('get_admin_reservations')
+    setReservations((data as ReservationRow[]) ?? [])
     setReservationsLoading(false)
   }, [])
 
@@ -325,15 +325,15 @@ export default function DashboardPage() {
                 <tbody>
                   {reservations.map((r) => {
                     const status = RESERVATION_STATUS_CONFIG[r.status]
-                    const clientName = [r.users?.first_name, r.users?.last_name].filter(Boolean).join(' ') || r.users?.email
+                    const clientName = [r.client_first_name, r.client_last_name].filter(Boolean).join(' ') || r.client_email
                     const isPending = r.status === 'NEW' || r.status === 'CONTACTED' || r.status === 'NEGOTIATION'
                     return (
                       <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="px-4 py-2.5">
                           <p className="text-gray-800 font-medium">{clientName}</p>
-                          {r.users?.phone && <p className="text-xs text-gray-400">{r.users.phone}</p>}
+                          {r.client_phone && <p className="text-xs text-gray-400">{r.client_phone}</p>}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-600 line-clamp-1">{r.products?.title ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-600 line-clamp-1">{r.product_title ?? '—'}</td>
                         <td className="px-4 py-2.5">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
                             {status.label}
@@ -341,8 +341,8 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-4 py-2.5 text-gray-500">{r.expires_at.slice(0, 10)}</td>
                         <td className="px-4 py-2.5 text-right space-x-2 whitespace-nowrap">
-                          {r.users?.phone && (
-                            <a href={`tel:${r.users.phone}`} className="text-xs text-gray-500 hover:text-gray-800 font-medium">
+                          {r.client_phone && (
+                            <a href={`tel:${r.client_phone}`} className="text-xs text-gray-500 hover:text-gray-800 font-medium">
                               Contacter
                             </a>
                           )}
