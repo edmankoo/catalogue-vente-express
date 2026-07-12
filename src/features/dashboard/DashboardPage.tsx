@@ -128,6 +128,11 @@ export default function DashboardPage() {
     refetch()
   }
 
+  async function handleSetStatus(reservation: ReservationRow, status: ReservationStatus) {
+    await supabase.from('reservations').update({ status }).eq('id', reservation.id)
+    fetchReservations()
+  }
+
   async function handleValidate(reservation: ReservationRow) {
     await supabase.from('reservations').update({ status: 'CONFIRMED' }).eq('id', reservation.id)
     await supabase.from('products').update({ status: 'SOLD' }).eq('id', reservation.product_id)
@@ -335,9 +340,21 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-4 py-2.5 text-gray-600 line-clamp-1">{r.product_title ?? '—'}</td>
                         <td className="px-4 py-2.5">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
-                            {status.label}
-                          </span>
+                          {isPending ? (
+                            <select
+                              value={r.status}
+                              onChange={(e) => handleSetStatus(r, e.target.value as ReservationStatus)}
+                              className={`text-xs font-medium pl-2 pr-1 py-0.5 rounded-full border-0 cursor-pointer ${status.classes}`}
+                            >
+                              <option value="NEW">Nouvelle</option>
+                              <option value="CONTACTED">Contacté</option>
+                              <option value="NEGOTIATION">Négociation</option>
+                            </select>
+                          ) : (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
+                              {status.label}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-2.5 text-gray-500">{r.expires_at.slice(0, 10)}</td>
                         <td className="px-4 py-2.5 text-right space-x-2 whitespace-nowrap">
