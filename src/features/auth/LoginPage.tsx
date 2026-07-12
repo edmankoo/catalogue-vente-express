@@ -218,10 +218,12 @@ export default function LoginPage() {
                 <label className="text-xs font-medium text-gray-500">Téléphone</label>
                 <input
                   type="tel"
+                  required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-orange-400"
                 />
+                <p className="text-[11px] text-gray-400 mt-1">Pour que le vendeur puisse te rappeler.</p>
               </div>
             )}
 
