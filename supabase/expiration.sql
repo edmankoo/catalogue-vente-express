@@ -30,6 +30,10 @@ as $$
 declare
   v_reservation public.reservations;
 begin
+  if public.is_admin() then
+    raise exception 'ADMIN_CANNOT_RESERVE';
+  end if;
+
   perform 1 from public.products where id = p_product_id and status = 'AVAILABLE' for update;
   if not found then
     raise exception 'PRODUCT_NOT_AVAILABLE';

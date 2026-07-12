@@ -15,7 +15,8 @@ export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { products, loading } = useProducts()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isAdmin = profile?.role === 'ADMIN'
   const [reserving, setReserving] = useState(false)
   const [reserved, setReserved] = useState(false)
   const [reserveError, setReserveError] = useState<string | null>(null)
@@ -51,6 +52,7 @@ export default function ProductDetailPage() {
       navigate('/connexion')
       return
     }
+    if (isAdmin) return
     setReserving(true)
     setReserveError(null)
     let error: { message: string } | null
@@ -139,6 +141,10 @@ export default function ProductDetailPage() {
                   Suivre mes réservations
                 </Link>
               </div>
+            ) : isAdmin ? (
+              <p className="mt-6 text-center text-sm text-gray-400">
+                Tu es connecté avec le compte vendeur — connecte-toi avec un compte client pour réserver.
+              </p>
             ) : (
               <button
                 disabled={!isAvailable || reserving}
