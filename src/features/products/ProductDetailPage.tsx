@@ -55,9 +55,7 @@ export default function ProductDetailPage() {
     setReserveError(null)
     let error: { message: string } | null
     try {
-      ;({ error } = await supabase
-        .from('reservations')
-        .insert({ product_id: product!.id, user_id: user.id }))
+      ;({ error } = await supabase.rpc('reserve_product', { p_product_id: product!.id }))
     } catch {
       setReserving(false)
       setReserveError('Connexion au serveur impossible. Réessaie.')
@@ -65,7 +63,11 @@ export default function ProductDetailPage() {
     }
     setReserving(false)
     if (error) {
-      setReserveError(error.message)
+      setReserveError(
+        error.message.includes('PRODUCT_NOT_AVAILABLE')
+          ? 'Cet article vient d\'être réservé par quelqu\'un d\'autre.'
+          : error.message,
+      )
       return
     }
     setReserved(true)
