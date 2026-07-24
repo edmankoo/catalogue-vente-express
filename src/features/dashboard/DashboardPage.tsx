@@ -41,10 +41,13 @@ export default function DashboardPage() {
 
   const [tab, setTab] = useState<Tab>('produits')
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [price, setPrice] = useState('')
   const [category, setCategory] = useState(CATEGORIES[1]?.id ?? '')
+  const [description, setDescription] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -81,13 +84,35 @@ export default function DashboardPage() {
     sold: products.filter((p) => p.status === 'SOLD').length,
   }
 
-  async function handleAddProduct(e: FormEvent) {
+  function resetForm() {
+    setTitle('')
+    setPrice('')
+    setDescription('')
+    setImageFile(null)
+    setExistingImageUrl(null)
+    setEditingId(null)
+    setShowForm(false)
+  }
+
+  function handleStartEdit(p: (typeof products)[number]) {
+    setEditingId(p.id)
+    setTitle(p.title)
+    setPrice(String(p.price))
+    setCategory(p.category)
+    setDescription(p.description)
+    setExistingImageUrl(p.image)
+    setImageFile(null)
+    setFormError(null)
+    setShowForm(true)
+  }
+
+  async function handleSubmitProduct(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !price) return
     setSaving(true)
     setFormError(null)
     try {
-      let imageUrl = 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit'
+      let imageUrl = existingImageUrl ?? 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit'
 
       if (imageFile) {
         const path = `${Date.now()}-${imageFile.name}`
@@ -101,25 +126,26 @@ export default function DashboardPage() {
         imageUrl = supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl
       }
 
-      await supabase.from('products').insert({
+      const payload = {
         title: title.trim(),
         price: Number(price),
-        stock: 1,
-        status: 'AVAILABLE',
         category,
         image_url: imageUrl,
-        description: '',
-      })
+        description: description.trim(),
+      }
+
+      if (editingId) {
+        await supabase.from('products').update(payload).eq('id', editingId)
+      } else {
+        await supabase.from('products').insert({ ...payload, stock: 1, status: 'AVAILABLE' })
+      }
     } catch {
       setFormError('Connexion au serveur impossible. Réessaie.')
       return
     } finally {
       setSaving(false)
     }
-    setTitle('')
-    setPrice('')
-    setImageFile(null)
-    setShowForm(false)
+    resetForm()
     refetch()
   }
 
@@ -207,7 +233,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <p className="text-sm font-semibold text-gray-700">Catalogue produits</p>
               <button
-                onClick={() => setShowForm((v) => !v)}
+                onClick={() => (showForm ? resetForm() : setShowForm(true))}
                 className="text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-full transition-colors"
               >
                 {showForm ? 'Annuler' : '+ Ajouter un produit'}
@@ -215,7 +241,7 @@ export default function DashboardPage() {
             </div>
 
             {showForm && (
-              <form onSubmit={handleAddProduct} className="p-4 border-b border-gray-100 flex flex-wrap gap-3 items-end">
+              <form onSubmit={handleSubmitProduct} className="p-4 border-b border-gray-100 flex flex-wrap gap-3 items-end">
                 <div className="flex-1 min-w-[160px]">
                   <label className="text-xs font-medium text-gray-500">Titre</label>
                   <input
@@ -256,13 +282,23 @@ export default function DashboardPage() {
                     className="w-full mt-1 text-xs text-gray-500 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:text-xs"
                   />
                 </div>
+                <div className="w-full">
+                  <label className="text-xs font-medium text-gray-500">Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    placeholder="Décris l'état, les dimensions, les particularités du produit..."
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-orange-400 resize-y"
+                  />
+                </div>
                 {formError && <p className="text-xs text-red-500 w-full">{formError}</p>}
                 <button
                   type="submit"
                   disabled={saving}
                   className="bg-gray-900 hover:bg-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
                 >
-                  {saving ? '...' : 'Enregistrer'}
+                  {saving ? '...' : editingId ? 'Mettre à jour' : 'Enregistrer'}
                 </button>
               </form>
             )}
@@ -294,7 +330,13 @@ export default function DashboardPage() {
                             {status.label}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right">
+                        <td className="px-4 py-2.5 text-right space-x-2 whitespace-nowrap">
+                          <button
+                            onClick={() => handleStartEdit(p)}
+                            className="text-xs text-gray-500 hover:text-gray-800 font-medium"
+                          >
+                            Modifier
+                          </button>
                           <button
                             onClick={() => handleDelete(p.id)}
                             className="text-xs text-red-500 hover:text-red-700 font-medium"
