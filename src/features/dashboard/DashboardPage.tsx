@@ -46,8 +46,8 @@ export default function DashboardPage() {
   const [price, setPrice] = useState('')
   const [category, setCategory] = useState(CATEGORIES[1]?.id ?? '')
   const [description, setDescription] = useState('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [existingImages, setExistingImages] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -88,8 +88,8 @@ export default function DashboardPage() {
     setTitle('')
     setPrice('')
     setDescription('')
-    setImageFile(null)
-    setExistingImageUrl(null)
+    setImageFiles([])
+    setExistingImages([])
     setEditingId(null)
     setShowForm(false)
   }
@@ -100,10 +100,18 @@ export default function DashboardPage() {
     setPrice(String(p.price))
     setCategory(p.category)
     setDescription(p.description)
-    setExistingImageUrl(p.image)
-    setImageFile(null)
+    setExistingImages(p.images)
+    setImageFiles([])
     setFormError(null)
     setShowForm(true)
+  }
+
+  function handleRemoveExistingImage(url: string) {
+    setExistingImages((imgs) => imgs.filter((i) => i !== url))
+  }
+
+  function handleRemoveNewImage(index: number) {
+    setImageFiles((files) => files.filter((_, i) => i !== index))
   }
 
   async function handleSubmitProduct(e: FormEvent) {
@@ -112,25 +120,28 @@ export default function DashboardPage() {
     setSaving(true)
     setFormError(null)
     try {
-      let imageUrl = existingImageUrl ?? 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit'
-
-      if (imageFile) {
-        const path = `${Date.now()}-${imageFile.name}`
+      const uploadedUrls: string[] = []
+      for (const file of imageFiles) {
+        const path = `${Date.now()}-${file.name}`
         const { error: uploadError } = await supabase.storage
           .from('product-images')
-          .upload(path, imageFile)
+          .upload(path, file)
         if (uploadError) {
           setFormError(uploadError.message)
           return
         }
-        imageUrl = supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl
+        uploadedUrls.push(supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl)
       }
+
+      const images = [...existingImages, ...uploadedUrls]
+      const imageUrl = images[0] ?? 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Nouveau+produit'
 
       const payload = {
         title: title.trim(),
         price: Number(price),
         category,
         image_url: imageUrl,
+        image_urls: images,
         description: description.trim(),
       }
 
@@ -273,14 +284,49 @@ export default function DashboardPage() {
                     ))}
                   </select>
                 </div>
-                <div className="w-56">
-                  <label className="text-xs font-medium text-gray-500">Photo</label>
+                <div className="w-full">
+                  <label className="text-xs font-medium text-gray-500">Photos</label>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                    multiple
+                    onChange={(e) => setImageFiles(Array.from(e.target.files ?? []))}
                     className="w-full mt-1 text-xs text-gray-500 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:text-xs"
                   />
+                  {(existingImages.length > 0 || imageFiles.length > 0) && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {existingImages.map((url) => (
+                        <div key={url} className="relative">
+                          <img src={url} alt="" className="w-14 h-14 rounded-lg object-cover border border-gray-200" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExistingImage(url)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-900 text-white text-xs leading-none flex items-center justify-center"
+                            aria-label="Retirer cette photo"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {imageFiles.map((file, i) => (
+                        <div key={`${file.name}-${i}`} className="relative">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt=""
+                            className="w-14 h-14 rounded-lg object-cover border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNewImage(i)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-900 text-white text-xs leading-none flex items-center justify-center"
+                            aria-label="Retirer cette photo"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="w-full">
                   <label className="text-xs font-medium text-gray-500">Description</label>

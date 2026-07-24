@@ -11,10 +11,14 @@ interface ProductRow {
   status: Product['status']
   category: string
   image_url: string | null
+  image_urls: string[] | null
   created_at: string
 }
 
+const PLACEHOLDER_IMAGE = 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Produit'
+
 function mapRow(row: ProductRow): Product {
+  const images = row.image_urls?.length ? row.image_urls : row.image_url ? [row.image_url] : []
   return {
     id: row.id,
     title: row.title,
@@ -23,7 +27,8 @@ function mapRow(row: ProductRow): Product {
     stock: row.stock,
     status: row.status,
     category: row.category,
-    image: row.image_url ?? 'https://placehold.co/400x300/f3f4f6/9ca3af?text=Produit',
+    image: images[0] ?? PLACEHOLDER_IMAGE,
+    images,
     createdAt: row.created_at.slice(0, 10),
   }
 }

@@ -8,6 +8,7 @@ export interface Product {
   status: ProductStatus
   category: string
   image: string
+  images: string[]
   description: string
   createdAt: string
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { CATEGORIES } from '../../lib/products'
 import { useProducts } from './useProducts'
@@ -20,8 +20,13 @@ export default function ProductDetailPage() {
   const [reserving, setReserving] = useState(false)
   const [reserved, setReserved] = useState(false)
   const [reserveError, setReserveError] = useState<string | null>(null)
+  const [activeImage, setActiveImage] = useState(0)
 
   const product = products.find((p) => p.id === id)
+
+  useEffect(() => {
+    setActiveImage(0)
+  }, [id])
 
   if (loading) {
     return (
@@ -94,7 +99,7 @@ export default function ProductDetailPage() {
         <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
           <div className="relative">
             <img
-              src={product.image}
+              src={product.images[activeImage] ?? product.image}
               alt={product.title}
               className="w-full h-72 object-cover"
             />
@@ -106,6 +111,22 @@ export default function ProductDetailPage() {
               </div>
             )}
           </div>
+
+          {product.images.length > 1 && (
+            <div className="flex gap-2 p-3 overflow-x-auto border-b border-gray-100">
+              {product.images.map((url, i) => (
+                <button
+                  key={url}
+                  onClick={() => setActiveImage(i)}
+                  className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${
+                    i === activeImage ? 'border-orange-500' : 'border-transparent'
+                  }`}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="p-5">
             {category && (

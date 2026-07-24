@@ -57,6 +57,7 @@ create table public.products (
   status text not null default 'AVAILABLE' check (status in ('AVAILABLE', 'RESERVED', 'SOLD', 'ARCHIVED')),
   category text not null default 'autres',
   image_url text,
+  image_urls text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
