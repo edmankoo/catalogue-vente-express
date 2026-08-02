@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CATEGORIES } from '../../lib/products'
 import ProductCard from '../../components/ProductCard'
+import NotificationSubscribeButton from '../../components/NotificationSubscribeButton'
 import { useAuth } from '../auth/AuthContext'
 import { useProducts } from './useProducts'
 
@@ -56,32 +57,35 @@ export default function CataloguePage() {
             />
           </div>
 
-          {user ? (
-            <div className="shrink-0 flex items-center gap-2">
-              <span className="text-sm text-gray-600 hidden sm:inline">
-                Bonjour {profile?.first_name || 'toi'}
-              </span>
+          <div className="shrink-0 flex items-center gap-2">
+            <NotificationSubscribeButton />
+            {user ? (
+              <>
+                <span className="text-sm text-gray-600 hidden sm:inline">
+                  Bonjour {profile?.first_name || 'toi'}
+                </span>
+                <Link
+                  to="/mes-reservations"
+                  className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2"
+                >
+                  Mes réservations
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2"
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
               <Link
-                to="/mes-reservations"
-                className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2"
+                to="/connexion"
+                className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
               >
-                Mes réservations
+                Connexion
               </Link>
-              <button
-                onClick={handleSignOut}
-                className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2"
-              >
-                Déconnexion
-              </button>
-            </div>
-          ) : (
-            <Link
-              to="/connexion"
-              className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
-            >
-              Connexion
-            </Link>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Barre de catégories */}

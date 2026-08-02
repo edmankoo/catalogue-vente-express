@@ -148,7 +148,21 @@ export default function DashboardPage() {
       if (editingId) {
         await supabase.from('products').update(payload).eq('id', editingId)
       } else {
-        await supabase.from('products').insert({ ...payload, stock: 1, status: 'AVAILABLE' })
+        const { data: newProduct } = await supabase
+          .from('products')
+          .insert({ ...payload, stock: 1, status: 'AVAILABLE' })
+          .select()
+          .single()
+
+        if (newProduct) {
+          await supabase.functions.invoke('send-product-notifications', {
+            body: {
+              product_id: newProduct.id,
+              title: newProduct.title,
+              price: newProduct.price,
+            },
+          })
+        }
       }
     } catch {
       setFormError('Connexion au serveur impossible. Réessaie.')

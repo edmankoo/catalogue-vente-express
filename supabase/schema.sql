@@ -8,6 +8,7 @@
 -- ---------- Nettoyage (sûr même si rien n'existe encore) ----------
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
+drop table if exists public.push_subscriptions cascade;
 drop table if exists public.reservations cascade;
 drop table if exists public.products cascade;
 drop function if exists public.is_admin() cascade;
@@ -92,11 +93,33 @@ create policy "reservations_insert_own" on public.reservations
 create policy "reservations_update_admin" on public.reservations
   for update using (public.is_admin());
 
+-- ---------- PUSH SUBSCRIPTIONS ----------
+create table public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  subscription jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id)
+);
+
+alter table public.push_subscriptions enable row level security;
+
+create policy "push_subscriptions_select_own" on public.push_subscriptions
+  for select using (auth.uid() = user_id);
+
+create policy "push_subscriptions_insert_own" on public.push_subscriptions
+  for insert with check (auth.uid() = user_id);
+
+create policy "push_subscriptions_delete_own" on public.push_subscriptions
+  for delete using (auth.uid() = user_id);
+
 -- ---------- Grants (Supabase applique ensuite les policies RLS ci-dessus) ----------
 grant usage on schema public to anon, authenticated;
 grant select on public.products to anon, authenticated;
 grant insert, update, delete on public.products to authenticated;
 grant select, update on public.users to authenticated;
+grant select, insert, update, delete on public.push_subscriptions to authenticated;
 grant select, insert, update on public.reservations to authenticated;
 
 -- ---------- Trigger : crée automatiquement le profil "users" à l'inscription ----------
