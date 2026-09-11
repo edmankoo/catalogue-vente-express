@@ -29,10 +29,21 @@ set search_path = public
 as $$
 declare
   v_reservation public.reservations;
+  v_user_id uuid;
 begin
   if public.is_admin() then
     raise exception 'ADMIN_CANNOT_RESERVE';
   end if;
+
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  -- Ensure user profile exists (in case signup trigger failed)
+  insert into public.users (id, email)
+  select auth.uid(), email from auth.users where id = v_user_id
+  on conflict (id) do nothing;
 
   perform 1 from public.products where id = p_product_id and status = 'AVAILABLE' for update;
   if not found then
@@ -40,7 +51,7 @@ begin
   end if;
 
   insert into public.reservations (product_id, user_id)
-  values (p_product_id, auth.uid())
+  values (p_product_id, v_user_id)
   returning * into v_reservation;
 
   update public.products set status = 'RESERVED', updated_at = now() where id = p_product_id;

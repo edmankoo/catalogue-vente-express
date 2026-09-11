@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signUp(email: string, password: string, info: SignUpInfo) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -84,7 +84,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     })
-    return { error: error?.message ?? null }
+
+    if (error || !data.user) {
+      return { error: error?.message ?? 'Erreur lors de l\'inscription' }
+    }
+
+    // Créer le profil utilisateur directement dans public.users
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert({
+        id: data.user.id,
+        email: email,
+        first_name: info.firstName,
+        last_name: info.lastName,
+        phone: info.phone,
+        role: 'CLIENT',
+      })
+
+    if (profileError && !profileError.message.includes('duplicate')) {
+      console.error('Erreur création profil:', profileError)
+      // Continuer quand même, le trigger peut l'avoir déjà créé
+    }
+
+    return { error: null }
   }
 
   async function signOut() {
