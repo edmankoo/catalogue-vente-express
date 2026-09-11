@@ -23,16 +23,57 @@ const RESERVATION_STATUS_CONFIG: Record<ReservationStatus, { label: string; clas
   EXPIRED: { label: 'Expirée', classes: 'bg-red-100 text-red-600' },
 }
 
+const PENDING_STATUSES: ReservationStatus[] = ['NEW', 'CONTACTED', 'NEGOTIATION']
+
+// Indicatif utilisé pour construire le lien WhatsApp quand le client a saisi
+// son numéro au format local (06 12 34 56 78).
+const DEFAULT_COUNTRY_CODE = '33'
+
 interface ReservationRow {
   id: string
   product_id: string
   status: ReservationStatus
+  reserved_at: string
   expires_at: string
   product_title: string | null
   client_first_name: string | null
   client_last_name: string | null
   client_phone: string | null
   client_email: string | null
+}
+
+function toWhatsAppNumber(phone: string): string | null {
+  const trimmed = phone.trim()
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length < 6) return null
+  if (trimmed.startsWith('+')) return digits
+  if (digits.startsWith('00')) return digits.slice(2)
+  if (digits.startsWith('0')) return DEFAULT_COUNTRY_CODE + digits.slice(1)
+  return digits
+}
+
+function formatExpiry(expiresAt: string): { label: string; urgent: boolean } {
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (ms <= 0) return { label: 'Délai dépassé', urgent: true }
+  const hours = Math.floor(ms / 3_600_000)
+  if (hours < 1) return { label: `Expire dans ${Math.max(1, Math.round(ms / 60_000))} min`, urgent: true }
+  if (hours < 24) return { label: `Expire dans ${hours} h`, urgent: true }
+  return { label: `Expire dans ${Math.floor(hours / 24)} j`, urgent: false }
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase()
 }
 
 export default function DashboardPage() {
@@ -53,6 +94,7 @@ export default function DashboardPage() {
 
   const [reservations, setReservations] = useState<ReservationRow[]>([])
   const [reservationsLoading, setReservationsLoading] = useState(true)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const fetchReservations = useCallback(async () => {
     setReservationsLoading(true)
@@ -61,9 +103,11 @@ export default function DashboardPage() {
     setReservationsLoading(false)
   }, [])
 
+  // Chargées dès l'arrivée sur le dashboard : le compteur de l'onglet doit
+  // être visible sans avoir à ouvrir la rubrique.
   useEffect(() => {
-    if (tab === 'reservations') fetchReservations()
-  }, [tab, fetchReservations])
+    if (profile?.role === 'ADMIN') fetchReservations()
+  }, [profile?.role, fetchReservations])
 
   if (authLoading || profileLoading) {
     return (
@@ -82,6 +126,24 @@ export default function DashboardPage() {
     available: products.filter((p) => p.status === 'AVAILABLE').length,
     reserved: products.filter((p) => p.status === 'RESERVED').length,
     sold: products.filter((p) => p.status === 'SOLD').length,
+  }
+
+  const productById = new Map(products.map((p) => [p.id, p]))
+  const pendingCount = reservations.filter((r) => PENDING_STATUSES.includes(r.status)).length
+
+  // Les réservations à traiter passent devant, le reste garde l'ordre
+  // antéchronologique renvoyé par la base.
+  const sortedReservations = [...reservations].sort((a, b) => {
+    const aPending = PENDING_STATUSES.includes(a.status) ? 0 : 1
+    const bPending = PENDING_STATUSES.includes(b.status) ? 0 : 1
+    return aPending - bPending
+  })
+
+  async function handleCopyPhone(reservation: ReservationRow) {
+    if (!reservation.client_phone) return
+    await navigator.clipboard.writeText(reservation.client_phone)
+    setCopiedId(reservation.id)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   function resetForm() {
@@ -245,11 +307,20 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setTab('reservations')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
               tab === 'reservations' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             Réservations
+            {pendingCount > 0 && (
+              <span
+                className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[1.25rem] ${
+                  tab === 'reservations' ? 'bg-white text-orange-600' : 'bg-orange-500 text-white'
+                }`}
+              >
+                {pendingCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -417,80 +488,172 @@ export default function DashboardPage() {
         )}
 
         {tab === 'reservations' && (
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-400 border-b border-gray-100">
-                    <th className="px-4 py-2 font-medium">Client</th>
-                    <th className="px-4 py-2 font-medium">Produit</th>
-                    <th className="px-4 py-2 font-medium">Statut</th>
-                    <th className="px-4 py-2 font-medium">Expire le</th>
-                    <th className="px-4 py-2 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reservations.map((r) => {
-                    const status = RESERVATION_STATUS_CONFIG[r.status]
-                    const clientName = [r.client_first_name, r.client_last_name].filter(Boolean).join(' ') || r.client_email
-                    const isPending = r.status === 'NEW' || r.status === 'CONTACTED' || r.status === 'NEGOTIATION'
-                    return (
-                      <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="px-4 py-2.5">
-                          <p className="text-gray-800 font-medium">{clientName}</p>
-                          {r.client_phone && <p className="text-xs text-gray-400">{r.client_phone}</p>}
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-600 line-clamp-1">{r.product_title ?? '—'}</td>
-                        <td className="px-4 py-2.5">
-                          {isPending ? (
-                            <select
-                              value={r.status}
-                              onChange={(e) => handleSetStatus(r, e.target.value as ReservationStatus)}
-                              className={`text-xs font-medium pl-2 pr-1 py-0.5 rounded-full border-0 cursor-pointer ${status.classes}`}
-                            >
-                              <option value="NEW">Nouvelle</option>
-                              <option value="CONTACTED">Contacté</option>
-                              <option value="NEGOTIATION">Négociation</option>
-                            </select>
-                          ) : (
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
-                              {status.label}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-500">{r.expires_at.slice(0, 10)}</td>
-                        <td className="px-4 py-2.5 text-right space-x-2 whitespace-nowrap">
-                          {r.client_phone && (
-                            <a href={`tel:${r.client_phone}`} className="text-xs text-gray-500 hover:text-gray-800 font-medium">
-                              Contacter
-                            </a>
-                          )}
-                          {isPending && (
-                            <>
-                              <button
-                                onClick={() => handleValidate(r)}
-                                className="text-xs text-green-600 hover:text-green-800 font-medium"
-                              >
-                                Valider
-                              </button>
-                              <button
-                                onClick={() => handleCancel(r)}
-                                className="text-xs text-red-500 hover:text-red-700 font-medium"
-                              >
-                                Annuler
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              {!reservationsLoading && reservations.length === 0 && (
-                <p className="text-center text-gray-400 py-8 text-sm">Aucune réservation pour le moment.</p>
-              )}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                {pendingCount > 0
+                  ? `${pendingCount} réservation${pendingCount > 1 ? 's' : ''} à traiter`
+                  : 'Aucune réservation à traiter'}
+              </p>
+              <button
+                onClick={fetchReservations}
+                className="text-xs font-medium text-gray-500 hover:text-gray-800"
+              >
+                ↻ Actualiser
+              </button>
             </div>
+
+            {reservationsLoading && (
+              <p className="text-center text-gray-400 py-12 text-sm">Chargement des réservations...</p>
+            )}
+
+            {!reservationsLoading && sortedReservations.length === 0 && (
+              <div className="bg-white rounded-xl border border-gray-100 text-center py-14">
+                <p className="text-4xl mb-3">📭</p>
+                <p className="text-sm text-gray-400">Aucune réservation pour le moment.</p>
+              </div>
+            )}
+
+            {sortedReservations.map((r) => {
+              const status = RESERVATION_STATUS_CONFIG[r.status]
+              const clientName =
+                [r.client_first_name, r.client_last_name].filter(Boolean).join(' ') ||
+                r.client_email ||
+                'Client'
+              const isPending = PENDING_STATUSES.includes(r.status)
+              const product = productById.get(r.product_id)
+              const expiry = formatExpiry(r.expires_at)
+              const whatsapp = r.client_phone ? toWhatsAppNumber(r.client_phone) : null
+
+              return (
+                <article
+                  key={r.id}
+                  className={`bg-white rounded-xl border overflow-hidden ${
+                    isPending ? 'border-orange-200 shadow-sm' : 'border-gray-100'
+                  }`}
+                >
+                  {/* Le client : c'est l'information que le vendeur vient chercher */}
+                  <div className="p-4 flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-semibold shrink-0">
+                      {initialsOf(clientName)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-gray-900 truncate">{clientName}</p>
+                        {isPending ? (
+                          <select
+                            value={r.status}
+                            onChange={(e) => handleSetStatus(r, e.target.value as ReservationStatus)}
+                            className={`text-xs font-medium pl-2 pr-1 py-1 rounded-full border-0 cursor-pointer shrink-0 ${status.classes}`}
+                          >
+                            <option value="NEW">Nouvelle</option>
+                            <option value="CONTACTED">Contacté</option>
+                            <option value="NEGOTIATION">Négociation</option>
+                          </select>
+                        ) : (
+                          <span
+                            className={`text-xs font-medium px-2 py-1 rounded-full shrink-0 ${status.classes}`}
+                          >
+                            {status.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {r.client_phone ? (
+                        <a
+                          href={`tel:${r.client_phone.replace(/\s/g, '')}`}
+                          className="mt-1 inline-block text-xl font-bold text-gray-900 tracking-tight hover:text-orange-600 transition-colors"
+                        >
+                          {r.client_phone}
+                        </a>
+                      ) : (
+                        <p className="mt-1 text-sm text-gray-400 italic">Aucun numéro renseigné</p>
+                      )}
+
+                      {r.client_email && (
+                        <a
+                          href={`mailto:${r.client_email}`}
+                          className="block text-xs text-gray-400 hover:text-gray-600 truncate"
+                        >
+                          {r.client_email}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Le produit concerné */}
+                  <div className="px-4 pb-3 flex items-center gap-3">
+                    <img
+                      src={product?.image ?? 'https://placehold.co/100x100/f3f4f6/9ca3af?text=Produit'}
+                      alt=""
+                      className="w-10 h-10 rounded-lg object-cover shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-700 truncate">{r.product_title ?? 'Produit supprimé'}</p>
+                      <p className="text-xs text-gray-400">
+                        {product ? `${product.price} € · ` : ''}
+                        Réservé le {formatDateTime(r.reserved_at)}
+                      </p>
+                    </div>
+                    {isPending && (
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          expiry.urgent ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {expiry.label}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions de contact et de suivi */}
+                  <div className="border-t border-gray-100 px-4 py-2.5 flex flex-wrap items-center gap-2">
+                    {r.client_phone && (
+                      <>
+                        <a
+                          href={`tel:${r.client_phone.replace(/\s/g, '')}`}
+                          className="text-xs font-medium bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full transition-colors"
+                        >
+                          📞 Appeler
+                        </a>
+                        {whatsapp && (
+                          <a
+                            href={`https://wa.me/${whatsapp}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-full transition-colors"
+                          >
+                            💬 WhatsApp
+                          </a>
+                        )}
+                        <button
+                          onClick={() => handleCopyPhone(r)}
+                          className="text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                        >
+                          {copiedId === r.id ? '✓ Copié' : 'Copier'}
+                        </button>
+                      </>
+                    )}
+                    {isPending && (
+                      <div className="ml-auto flex items-center gap-3">
+                        <button
+                          onClick={() => handleValidate(r)}
+                          className="text-xs text-green-600 hover:text-green-800 font-medium"
+                        >
+                          Valider la vente
+                        </button>
+                        <button
+                          onClick={() => handleCancel(r)}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         )}
       </main>

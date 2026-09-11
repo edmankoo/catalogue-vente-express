@@ -163,9 +163,12 @@ export default function CataloguePage() {
           </div>
         )}
 
-        <div className="text-center mt-10">
-          <Link to="/admin" className="text-xs text-gray-300 hover:text-gray-500">
-            Espace vendeur
+        <div className="text-center mt-12 border-t border-gray-200 pt-8">
+          <Link
+            to="/admin"
+            className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+          >
+            🛠️ Espace vendeur
           </Link>
         </div>
       </main>
