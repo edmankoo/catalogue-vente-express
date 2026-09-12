@@ -2,12 +2,59 @@ import { supabase } from './supabaseClient'
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
 
-export async function requestNotificationPermission() {
-  if (!('serviceWorker' in navigator)) {
-    throw new Error('Service Workers non supportés')
-  }
+const SW_READY_TIMEOUT_MS = 5000
 
-  if (!('PushManager' in window)) {
+export function isPushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+}
+
+function isIos() {
+  // iPadOS 13+ s'annonce comme un Mac : le tactile est ce qui l'en distingue.
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
+}
+
+function isStandalone() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    // Safari iOS n'implémente toujours pas display-mode, d'où ce reliquat.
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  )
+}
+
+/*
+  iOS n'expose PushManager que dans une PWA installée. Tant que l'app tourne dans
+  un onglet Safari, aucune inscription n'est possible : il faut d'abord l'ajouter
+  à l'écran d'accueil, ce que rien n'indique à l'utilisateur.
+*/
+export function needsIosInstall() {
+  return !isPushSupported() && isIos() && !isStandalone()
+}
+
+/*
+  `navigator.serviceWorker.ready` ne se résout JAMAIS tant qu'aucun service worker
+  n'est enregistré — en dev, ou sur iPhone en navigation privée où iOS les désactive.
+  Sans cette borne, tout appelant reste bloqué indéfiniment.
+*/
+async function getReadyRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) return null
+
+  let timer: ReturnType<typeof setTimeout>
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), SW_READY_TIMEOUT_MS)
+  })
+
+  try {
+    return await Promise.race([navigator.serviceWorker.ready, timeout])
+  } finally {
+    clearTimeout(timer!)
+  }
+}
+
+export async function requestNotificationPermission() {
+  if (!isPushSupported()) {
     throw new Error('Push Notifications non supportées')
   }
 
@@ -16,7 +63,11 @@ export async function requestNotificationPermission() {
     throw new Error('Permission de notification refusée')
   }
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await getReadyRegistration()
+  if (!registration) {
+    throw new Error('Service Worker indisponible')
+  }
+
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -50,14 +101,21 @@ export async function subscribeToPushNotifications() {
 
 export async function unsubscribeFromPushNotifications() {
   try {
-    const registration = await navigator.serviceWorker.ready
-    const subscription = await registration.pushManager.getSubscription()
+    const registration = await getReadyRegistration()
+    const subscription = await registration?.pushManager.getSubscription()
 
     if (subscription) {
       await subscription.unsubscribe()
     }
 
-    const { error } = await supabase.from('push_subscriptions').delete().eq('id', 'any')
+    const { data } = await supabase.auth.getUser()
+    // Plus de session : l'abonnement navigateur est révoqué, rien à supprimer côté serveur.
+    if (!data.user) return true
+
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', data.user.id)
     if (error) throw error
 
     return true
@@ -69,9 +127,11 @@ export async function unsubscribeFromPushNotifications() {
 
 export async function checkNotificationSubscription(): Promise<boolean> {
   try {
-    if (!('serviceWorker' in navigator)) return false
+    if (!isPushSupported()) return false
 
-    const registration = await navigator.serviceWorker.ready
+    const registration = await getReadyRegistration()
+    if (!registration) return false
+
     const subscription = await registration.pushManager.getSubscription()
     return subscription !== null
   } catch {

@@ -37,8 +37,13 @@ export default function CataloguePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+      <header className="bg-white shadow-sm sticky top-0 z-30 pt-safe">
+        {/*
+          Sur mobile la recherche passe seule sur une 2e ligne (order-last + w-full),
+          et les actions se réduisent à leur icône : tout tenait sur une seule ligne
+          de 470px, ce qui poussait « Connexion » hors de l'écran sur iPhone.
+        */}
+        <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-2xl">🏷️</span>
             <span className="font-bold text-gray-900 text-lg leading-none">
@@ -46,7 +51,7 @@ export default function CataloguePage() {
             </span>
           </div>
 
-          <div className="flex-1 relative">
+          <div className="relative order-last w-full sm:order-none sm:w-auto sm:flex-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
             <input
               type="search"
@@ -57,7 +62,7 @@ export default function CataloguePage() {
             />
           </div>
 
-          <div className="shrink-0 flex items-center gap-2">
+          <div className="ml-auto shrink-0 flex items-center gap-1 sm:ml-0 sm:gap-2">
             <NotificationSubscribeButton />
             {user ? (
               <>
@@ -66,21 +71,27 @@ export default function CataloguePage() {
                 </span>
                 <Link
                   to="/mes-reservations"
-                  className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2"
+                  title="Mes réservations"
+                  className="text-sm font-medium text-gray-500 hover:text-gray-700 px-2 py-2 sm:px-3 whitespace-nowrap"
                 >
-                  Mes réservations
+                  <span className="sm:hidden" aria-hidden>📋</span>
+                  <span className="hidden sm:inline">Mes réservations</span>
+                  <span className="sr-only sm:hidden">Mes réservations</span>
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2"
+                  title="Déconnexion"
+                  className="text-sm font-medium text-gray-500 hover:text-gray-700 px-2 py-2 sm:px-3 whitespace-nowrap"
                 >
-                  Déconnexion
+                  <span className="sm:hidden" aria-hidden>🚪</span>
+                  <span className="hidden sm:inline">Déconnexion</span>
+                  <span className="sr-only sm:hidden">Déconnexion</span>
                 </button>
               </>
             ) : (
               <Link
                 to="/connexion"
-                className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors"
+                className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors whitespace-nowrap"
               >
                 Connexion
               </Link>

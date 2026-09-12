@@ -10,3 +10,34 @@ body {
   -webkit-font-smoothing: antialiased;
   background-color: #f5f5f5;
 }
+
+/*
+  iOS zoome automatiquement sur un champ dont la police fait moins de 16px, et ne
+  dézoome pas ensuite. Les `:not()` servent uniquement à passer devant les classes
+  Tailwind (`text-sm`) posées sur les champs.
+*/
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']),
+  select:not([multiple]),
+  textarea:not([readonly]) {
+    font-size: 16px;
+  }
+}
+
+/*
+  App installée sur l'écran d'accueil : avec `viewport-fit=cover`, la page occupe
+  tout l'écran, encoche et indicateur d'accueil compris. Sans ces marges, le
+  header sticky passe sous la barre d'état des iPhone à encoche.
+  En onglet Safari les insets valent 0, d'où le garde-fou `display-mode`.
+*/
+@media (display-mode: standalone) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}

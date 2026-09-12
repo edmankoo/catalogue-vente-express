@@ -53,7 +53,7 @@ export default function MyReservationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm sticky top-0 z-30">
+      <header className="bg-white shadow-sm sticky top-0 z-30 pt-safe">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link to="/" className="text-gray-500 hover:text-gray-800 text-lg" aria-label="Retour">
             ←

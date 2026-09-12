@@ -111,6 +111,11 @@ create policy "push_subscriptions_select_own" on public.push_subscriptions
 create policy "push_subscriptions_insert_own" on public.push_subscriptions
   for insert with check (auth.uid() = user_id);
 
+-- Le upsert (onConflict user_id) se résout en UPDATE quand l'abonnement existe
+-- déjà : sans cette policy, un réabonnement échoue sur la contrainte unique.
+create policy "push_subscriptions_update_own" on public.push_subscriptions
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 create policy "push_subscriptions_delete_own" on public.push_subscriptions
   for delete using (auth.uid() = user_id);
 
