@@ -1,15 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
+import webpush from 'npm:web-push@3.6.7'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
 
-interface PushSubscription {
-  endpoint: string
-  keys: {
-    p256dh: string
-    auth: string
+webpush.setVapidDetails('mailto:admin@catalogue-vente-express.com', vapidPublicKey!, vapidPrivateKey!)
+
+interface PushSubscriptionRow {
+  user_id: string
+  subscription: {
+    endpoint: string
+    keys: { p256dh: string; auth: string }
   }
 }
 
@@ -19,8 +22,7 @@ Deno.serve(async (req) => {
       return new Response('Method not allowed', { status: 405 })
     }
 
-    const payload = await req.json()
-    const { product_id, title, price } = payload
+    const { product_id, title, price } = await req.json()
 
     if (!product_id || !title) {
       return new Response('Missing product_id or title', { status: 400 })
@@ -28,10 +30,9 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
-    // Récupère toutes les subscriptions
     const { data: subscriptions, error: subError } = await supabase
       .from('push_subscriptions')
-      .select('subscription')
+      .select('user_id, subscription')
 
     if (subError) {
       console.error('Erreur récupération subscriptions:', subError)
@@ -39,23 +40,37 @@ Deno.serve(async (req) => {
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
+      return new Response(JSON.stringify({ sent: 0, total: 0 }), { status: 200 })
     }
 
-    const notificationPayload = {
+    const notificationPayload = JSON.stringify({
       title: `📢 Nouveau produit : ${title}`,
       body: `Prix: ${price}€`,
       productId: product_id,
+    })
+
+    let sent = 0
+    const staleUserIds: string[] = []
+
+    for (const row of subscriptions as PushSubscriptionRow[]) {
+      try {
+        await webpush.sendNotification(row.subscription, notificationPayload)
+        sent++
+      } catch (error) {
+        const statusCode = (error as { statusCode?: number }).statusCode
+        console.warn(`Échec d'envoi (user ${row.user_id}):`, statusCode, error)
+        // 404/410 = abonnement expiré ou révoqué côté navigateur : à nettoyer
+        if (statusCode === 404 || statusCode === 410) {
+          staleUserIds.push(row.user_id)
+        }
+      }
     }
 
-    const sentCount = await sendPushNotifications(
-      subscriptions.map((s) => s.subscription as PushSubscription),
-      notificationPayload,
-      vapidPublicKey!,
-      vapidPrivateKey!
-    )
+    if (staleUserIds.length > 0) {
+      await supabase.from('push_subscriptions').delete().in('user_id', staleUserIds)
+    }
 
-    return new Response(JSON.stringify({ sent: sentCount }), {
+    return new Response(JSON.stringify({ sent, total: subscriptions.length }), {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (error) {
@@ -63,66 +78,3 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(error) }), { status: 500 })
   }
 })
-
-async function sendPushNotifications(
-  subscriptions: PushSubscription[],
-  payload: Record<string, any>,
-  vapidPublicKey: string,
-  vapidPrivateKey: string
-): Promise<number> {
-  let sent = 0
-
-  for (const subscription of subscriptions) {
-    try {
-      const headers = {
-        'Content-Type': 'application/octet-stream',
-        'TTL': '24',
-        'Urgency': 'high',
-      } as Record<string, string>
-
-      // Signature VAPID (simple)
-      const timestamp = Math.floor(Date.now() / 1000)
-      const aud = new URL(subscription.endpoint).origin
-      const sub = 'mailto:admin@catalogue-vente-express.com'
-
-      const vapidAuthHeader = generateVAPIDAuthHeader(
-        aud,
-        sub,
-        timestamp,
-        vapidPublicKey,
-        vapidPrivateKey
-      )
-
-      headers['Authorization'] = vapidAuthHeader
-
-      // Envoie le push
-      const response = await fetch(subscription.endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      })
-
-      if (response.ok) {
-        sent++
-      } else {
-        console.warn(`Failed to send push to ${subscription.endpoint}: ${response.status}`)
-      }
-    } catch (error) {
-      console.warn(`Error sending push: ${error}`)
-    }
-  }
-
-  return sent
-}
-
-function generateVAPIDAuthHeader(
-  aud: string,
-  sub: string,
-  exp: number,
-  publicKey: string,
-  privateKey: string
-): string {
-  // Simplifié: juste un header VAPID de base
-  // En production, implémenter la signature JWT complète
-  return `vapid t=${publicKey}, k=${publicKey}`
-}
