@@ -94,14 +94,24 @@ create policy "reservations_update_admin" on public.reservations
   for update using (public.is_admin());
 
 -- ---------- PUSH SUBSCRIPTIONS ----------
+-- L'unicité porte sur l'endpoint, pas sur l'utilisateur : un même compte
+-- consulté depuis un iPhone et depuis un ordinateur produit deux endpoints
+-- distincts, donc deux abonnements à conserver côte à côte.
 create table public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users (id) on delete cascade,
   subscription jsonb not null,
+  -- Colonne générée : ne peut pas se désynchroniser du jsonb.
+  endpoint text generated always as (subscription ->> 'endpoint') stored,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique(user_id)
+  updated_at timestamptz not null default now()
 );
+
+create unique index push_subscriptions_endpoint_key
+  on public.push_subscriptions (endpoint);
+
+create index push_subscriptions_user_id_idx
+  on public.push_subscriptions (user_id);
 
 alter table public.push_subscriptions enable row level security;
 
@@ -111,13 +121,48 @@ create policy "push_subscriptions_select_own" on public.push_subscriptions
 create policy "push_subscriptions_insert_own" on public.push_subscriptions
   for insert with check (auth.uid() = user_id);
 
--- Le upsert (onConflict user_id) se résout en UPDATE quand l'abonnement existe
--- déjà : sans cette policy, un réabonnement échoue sur la contrainte unique.
+-- Le réabonnement d'un appareil déjà connu se résout en UPDATE : sans cette
+-- policy, il échouerait sur l'index unique de l'endpoint.
 create policy "push_subscriptions_update_own" on public.push_subscriptions
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "push_subscriptions_delete_own" on public.push_subscriptions
   for delete using (auth.uid() = user_id);
+
+-- Un même appareil peut changer de compte : déconnexion, puis connexion d'un
+-- autre utilisateur sur le même téléphone. La ligne portant cet endpoint
+-- appartient alors à quelqu'un d'autre, et les policies ci-dessus interdisent
+-- au nouvel arrivant de la reprendre — l'upsert échouerait sur l'index unique.
+-- SECURITY DEFINER autorise ce transfert, strictement limité à l'endpoint que
+-- le navigateur vient de fournir.
+create or replace function public.upsert_push_subscription(p_subscription jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Non authentifié';
+  end if;
+
+  if p_subscription ->> 'endpoint' is null then
+    raise exception 'Abonnement sans endpoint';
+  end if;
+
+  insert into public.push_subscriptions (user_id, subscription)
+  values (auth.uid(), p_subscription)
+  on conflict (endpoint) do update
+    set user_id      = excluded.user_id,
+        subscription = excluded.subscription,
+        updated_at   = now();
+end;
+$$;
+
+-- `anon` explicitement : les privilèges par défaut du schéma public lui
+-- accordent l'exécution à la création, que le revoke sur PUBLIC ne retire pas.
+revoke all on function public.upsert_push_subscription(jsonb) from public, anon;
+grant execute on function public.upsert_push_subscription(jsonb) to authenticated;
 
 -- ---------- Grants (Supabase applique ensuite les policies RLS ci-dessus) ----------
 grant usage on schema public to anon, authenticated;

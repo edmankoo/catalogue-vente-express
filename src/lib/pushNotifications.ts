@@ -83,13 +83,15 @@ export async function subscribeToPushNotifications() {
 
     if (!data.user) throw new Error('Non connecté')
 
-    const { error } = await supabase.from('push_subscriptions').upsert(
-      {
-        user_id: data.user.id,
-        subscription: subscription.toJSON(),
-      },
-      { onConflict: 'user_id' }
-    )
+    /*
+      Passe par une fonction SECURITY DEFINER plutôt qu'un upsert direct :
+      l'unicité porte sur l'endpoint, et cet endpoint peut déjà appartenir à un
+      autre compte (même téléphone, utilisateur précédent). Les policies RLS
+      empêcheraient de reprendre la ligne, la fonction s'en charge.
+    */
+    const { error } = await supabase.rpc('upsert_push_subscription', {
+      p_subscription: subscription.toJSON(),
+    })
 
     if (error) throw error
     return true
@@ -104,6 +106,9 @@ export async function unsubscribeFromPushNotifications() {
     const registration = await getReadyRegistration()
     const subscription = await registration?.pushManager.getSubscription()
 
+    // Lu AVANT unsubscribe() : l'objet ne porte plus son endpoint ensuite.
+    const endpoint = subscription?.endpoint
+
     if (subscription) {
       await subscription.unsubscribe()
     }
@@ -112,11 +117,19 @@ export async function unsubscribeFromPushNotifications() {
     // Plus de session : l'abonnement navigateur est révoqué, rien à supprimer côté serveur.
     if (!data.user) return true
 
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .delete()
-      .eq('user_id', data.user.id)
-    if (error) throw error
+    /*
+      Suppression ciblée sur cet appareil : filtrer par user_id supprimerait
+      aussi les abonnements des autres appareils du compte. Sans endpoint (aucun
+      abonnement navigateur en place), il n'y a rien à cibler — une éventuelle
+      ligne résiduelle sera nettoyée par l'Edge Function au premier 404/410.
+    */
+    if (endpoint) {
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('endpoint', endpoint)
+      if (error) throw error
+    }
 
     return true
   } catch (error) {

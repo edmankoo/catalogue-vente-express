@@ -38,3 +38,6 @@ build
 
 .vercel
 .env*
+
+# Supabase CLI (état local, contient des URL de connexion)
+supabase/.temp
