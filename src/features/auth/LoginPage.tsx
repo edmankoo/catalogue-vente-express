@@ -292,6 +292,21 @@ export default function LoginPage() {
 
             {error && <p className="text-xs text-red-500 -mt-1">{error}</p>}
 
+            {mode === 'inscription' && (
+              <p className="text-[11px] text-gray-400 leading-snug">
+                En créant un compte, tu acceptes que ton nom, ton téléphone et ton email soient utilisés
+                pour gérer tes réservations. Détails dans la{' '}
+                <Link to="/confidentialite" className="underline hover:text-gray-600">
+                  politique de confidentialité
+                </Link>{' '}
+                et les{' '}
+                <Link to="/mentions-legales" className="underline hover:text-gray-600">
+                  mentions légales
+                </Link>
+                .
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={loading}

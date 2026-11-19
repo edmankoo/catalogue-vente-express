@@ -5,6 +5,8 @@ import LoginPage from './features/auth/LoginPage'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import MyReservationsPage from './features/reservations/MyReservationsPage'
+import LegalNoticePage from './features/legal/LegalNoticePage'
+import PrivacyPage from './features/legal/PrivacyPage'
 import { AuthProvider } from './features/auth/AuthContext'
 
 export default function App() {
@@ -17,6 +19,8 @@ export default function App() {
           <Route path="/connexion" element={<LoginPage />} />
           <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
           <Route path="/mes-reservations" element={<MyReservationsPage />} />
+          <Route path="/mentions-legales" element={<LegalNoticePage />} />
+          <Route path="/confidentialite" element={<PrivacyPage />} />
           <Route path="/admin" element={<DashboardPage />} />
         </Routes>
       </BrowserRouter>

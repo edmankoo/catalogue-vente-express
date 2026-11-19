@@ -181,6 +181,14 @@ export default function CataloguePage() {
           >
             🛠️ Espace vendeur
           </Link>
+          <div className="mt-4 flex justify-center gap-4 text-xs text-gray-400">
+            <Link to="/mentions-legales" className="hover:text-gray-600">
+              Mentions légales
+            </Link>
+            <Link to="/confidentialite" className="hover:text-gray-600">
+              Confidentialité
+            </Link>
+          </div>
         </div>
       </main>
     </div>
