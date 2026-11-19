@@ -33,6 +33,7 @@ interface ReservationRow {
   id: string
   product_id: string
   status: ReservationStatus
+  quantity: number
   reserved_at: string
   expires_at: string
   product_title: string | null
@@ -87,6 +88,8 @@ export default function DashboardPage() {
   const [price, setPrice] = useState('')
   const [category, setCategory] = useState(CATEGORIES[1]?.id ?? '')
   const [description, setDescription] = useState('')
+  const [isMultiple, setIsMultiple] = useState(false)
+  const [stockInput, setStockInput] = useState('2')
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [existingImages, setExistingImages] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
@@ -150,6 +153,8 @@ export default function DashboardPage() {
     setTitle('')
     setPrice('')
     setDescription('')
+    setIsMultiple(false)
+    setStockInput('2')
     setImageFiles([])
     setExistingImages([])
     setEditingId(null)
@@ -162,6 +167,8 @@ export default function DashboardPage() {
     setPrice(String(p.price))
     setCategory(p.category)
     setDescription(p.description)
+    setIsMultiple(p.isMultiple)
+    setStockInput(String(Math.max(p.stock, 1)))
     setExistingImages(p.images)
     setImageFiles([])
     setFormError(null)
@@ -179,6 +186,11 @@ export default function DashboardPage() {
   async function handleSubmitProduct(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !price) return
+    const lotStock = Math.floor(Number(stockInput))
+    if (isMultiple && (!Number.isFinite(lotStock) || lotStock < 1)) {
+      setFormError('Indique le nombre d\'unités du lot (1 minimum).')
+      return
+    }
     setSaving(true)
     setFormError(null)
     try {
@@ -205,6 +217,9 @@ export default function DashboardPage() {
         image_url: imageUrl,
         image_urls: images,
         description: description.trim(),
+        is_multiple: isMultiple,
+        // Un produit unique ne touche pas au stock existant ; un lot le fixe.
+        ...(isMultiple ? { stock: lotStock } : {}),
       }
 
       if (editingId) {
@@ -212,7 +227,7 @@ export default function DashboardPage() {
       } else {
         const { data: newProduct } = await supabase
           .from('products')
-          .insert({ ...payload, stock: 1, status: 'AVAILABLE' })
+          .insert({ stock: 1, ...payload, status: 'AVAILABLE' })
           .select()
           .single()
 
@@ -246,16 +261,18 @@ export default function DashboardPage() {
     fetchReservations()
   }
 
+  // Validation et annulation passent par la base : elle met à jour la
+  // réservation ET le stock du produit dans la même transaction.
   async function handleValidate(reservation: ReservationRow) {
-    await supabase.from('reservations').update({ status: 'CONFIRMED' }).eq('id', reservation.id)
-    await supabase.from('products').update({ status: 'SOLD' }).eq('id', reservation.product_id)
+    const { error } = await supabase.rpc('confirm_reservation', { p_reservation_id: reservation.id })
+    if (error) window.alert(error.message)
     fetchReservations()
     refetch()
   }
 
   async function handleCancel(reservation: ReservationRow) {
-    await supabase.from('reservations').update({ status: 'CANCELLED' }).eq('id', reservation.id)
-    await supabase.from('products').update({ status: 'AVAILABLE' }).eq('id', reservation.product_id)
+    const { error } = await supabase.rpc('cancel_reservation', { p_reservation_id: reservation.id })
+    if (error) window.alert(error.message)
     fetchReservations()
     refetch()
   }
@@ -369,6 +386,36 @@ export default function DashboardPage() {
                     ))}
                   </select>
                 </div>
+                <div className="w-full rounded-lg border border-gray-200 p-3">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isMultiple}
+                      onChange={(e) => setIsMultiple(e.target.checked)}
+                      className="mt-0.5 accent-orange-500"
+                    />
+                    <span className="text-sm text-gray-700">
+                      <span className="font-medium">Lot : plusieurs clients possibles</span>
+                      <span className="block text-xs text-gray-400">
+                        Chaque client choisit combien d'unités il réserve ; le produit reste disponible
+                        tant qu'il reste des unités. Le prix saisi est le prix d'une unité.
+                      </span>
+                    </span>
+                  </label>
+                  {isMultiple && (
+                    <div className="mt-3 w-40">
+                      <label className="text-xs font-medium text-gray-500">Nombre d'unités</label>
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={stockInput}
+                        onChange={(e) => setStockInput(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-orange-400"
+                      />
+                    </div>
+                  )}
+                </div>
                 <div className="w-full">
                   <label className="text-xs font-medium text-gray-500">Photos</label>
                   <input
@@ -454,8 +501,16 @@ export default function DashboardPage() {
                           <img src={p.image} alt="" className="w-9 h-9 rounded-md object-cover shrink-0" />
                           <span className="text-gray-800 font-medium line-clamp-1">{p.title}</span>
                         </td>
-                        <td className="px-4 py-2.5 text-gray-700">{p.price} €</td>
-                        <td className="px-4 py-2.5 text-gray-500">{p.stock}</td>
+                        <td className="px-4 py-2.5 text-gray-700">
+                          {p.price} €{p.isMultiple && <span className="text-xs text-gray-400"> / unité</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">
+                          {p.isMultiple
+                            ? `${p.availableQuantity} dispo / ${p.stock}${
+                                p.reservedQuantity > 0 ? ` (${p.reservedQuantity} réservé${p.reservedQuantity > 1 ? 's' : ''})` : ''
+                              }`
+                            : p.stock}
+                        </td>
                         <td className="px-4 py-2.5">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
                             {status.label}
@@ -591,7 +646,13 @@ export default function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-gray-700 truncate">{r.product_title ?? 'Produit supprimé'}</p>
                       <p className="text-xs text-gray-400">
-                        {product ? `${product.price} € · ` : ''}
+                        {r.quantity > 1 || product?.isMultiple
+                          ? `${r.quantity} unité${r.quantity > 1 ? 's' : ''}${
+                              product ? ` × ${product.price} € = ${r.quantity * product.price} €` : ''
+                            } · `
+                          : product
+                            ? `${product.price} € · `
+                            : ''}
                         Réservé le {formatDateTime(r.reserved_at)}
                       </p>
                     </div>

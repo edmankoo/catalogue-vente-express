@@ -2,6 +2,10 @@
 -- Catalogue Vente Express — réservation atomique + expiration auto 72h
 -- À coller en une fois dans : Dashboard Supabase > SQL Editor > Run
 -- Ce script peut être relancé sans risque.
+--
+-- ATTENTION : reserve_product() et expire_old_reservations() ci-dessous sont
+-- remplacées par multiple-quantities.sql (produits en lot). Sur une base où
+-- multiple-quantities.sql a déjà été exécuté, NE PAS relancer ce script.
 -- ============================================================
 
 -- ---------- Nettoyage ----------

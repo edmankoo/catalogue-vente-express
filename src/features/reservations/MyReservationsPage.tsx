@@ -16,6 +16,7 @@ const STATUS_CONFIG: Record<ReservationStatus, { label: string; classes: string 
 interface ReservationRow {
   id: string
   status: ReservationStatus
+  quantity: number
   reserved_at: string
   expires_at: string
   products: { id: string; title: string; price: number; image_url: string | null } | null
@@ -30,7 +31,7 @@ export default function MyReservationsPage() {
     if (!user) return
     supabase
       .from('reservations')
-      .select('id, status, reserved_at, expires_at, products(id, title, price, image_url)')
+      .select('id, status, quantity, reserved_at, expires_at, products(id, title, price, image_url)')
       .eq('user_id', user.id)
       .order('reserved_at', { ascending: false })
       .then(({ data }) => {
@@ -92,7 +93,11 @@ export default function MyReservationsPage() {
                     <p className="font-medium text-gray-900 truncate">
                       {r.products?.title ?? 'Produit supprimé'}
                     </p>
-                    <p className="text-sm text-orange-500 font-semibold">{r.products?.price} €</p>
+                    <p className="text-sm text-orange-500 font-semibold">
+                      {r.quantity > 1 && r.products
+                        ? `${r.quantity} × ${r.products.price} € = ${r.quantity * r.products.price} €`
+                        : `${r.products?.price} €`}
+                    </p>
                   </div>
                   <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${status.classes}`}>
                     {status.label}

@@ -8,6 +8,8 @@ interface ProductRow {
   description: string
   price: number
   stock: number
+  is_multiple: boolean
+  reserved_quantity: number
   status: Product['status']
   category: string
   image_url: string | null
@@ -25,6 +27,13 @@ function mapRow(row: ProductRow): Product {
     description: row.description,
     price: Number(row.price),
     stock: row.stock,
+    isMultiple: row.is_multiple,
+    reservedQuantity: row.reserved_quantity,
+    availableQuantity: row.is_multiple
+      ? Math.max(row.stock - row.reserved_quantity, 0)
+      : row.status === 'AVAILABLE'
+        ? 1
+        : 0,
     status: row.status,
     category: row.category,
     image: images[0] ?? PLACEHOLDER_IMAGE,

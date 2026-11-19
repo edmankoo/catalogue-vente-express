@@ -14,18 +14,21 @@ const STATUS_CONFIG = {
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { products, loading } = useProducts()
+  const { products, loading, refetch } = useProducts()
   const { user, profile } = useAuth()
   const isAdmin = profile?.role === 'ADMIN'
   const [reserving, setReserving] = useState(false)
   const [reserved, setReserved] = useState(false)
   const [reserveError, setReserveError] = useState<string | null>(null)
   const [activeImage, setActiveImage] = useState(0)
+  const [quantity, setQuantity] = useState(1)
+  const [reservedQuantity, setReservedQuantity] = useState(1)
 
   const product = products.find((p) => p.id === id)
 
   useEffect(() => {
     setActiveImage(0)
+    setQuantity(1)
   }, [id])
 
   if (loading) {
@@ -51,6 +54,9 @@ export default function ProductDetailPage() {
   const status = STATUS_CONFIG[product.status]
   const category = CATEGORIES.find((c) => c.id === product.category)
   const isAvailable = product.status === 'AVAILABLE'
+  const isLot = product.isMultiple
+  const maxQuantity = Math.max(product.availableQuantity, 1)
+  const chosenQuantity = isLot ? Math.min(Math.max(quantity, 1), maxQuantity) : 1
 
   async function handleReserve() {
     if (!user) {
@@ -62,7 +68,10 @@ export default function ProductDetailPage() {
     setReserveError(null)
     let error: { message: string } | null
     try {
-      ;({ error } = await supabase.rpc('reserve_product', { p_product_id: product!.id }))
+      ;({ error } = await supabase.rpc('reserve_product', {
+        p_product_id: product!.id,
+        p_quantity: chosenQuantity,
+      }))
     } catch {
       setReserving(false)
       setReserveError('Connexion au serveur impossible. Réessaie.')
@@ -70,14 +79,20 @@ export default function ProductDetailPage() {
     }
     setReserving(false)
     if (error) {
-      setReserveError(
-        error.message.includes('PRODUCT_NOT_AVAILABLE')
-          ? 'Cet article vient d\'être réservé par quelqu\'un d\'autre.'
-          : error.message,
-      )
+      if (error.message.includes('QUANTITY_NOT_AVAILABLE')) {
+        setReserveError('Il ne reste plus assez d\'unités. Choisis une quantité plus petite.')
+        refetch()
+      } else if (error.message.includes('PRODUCT_NOT_AVAILABLE')) {
+        setReserveError('Cet article vient d\'être réservé par quelqu\'un d\'autre.')
+        refetch()
+      } else {
+        setReserveError(error.message)
+      }
       return
     }
+    setReservedQuantity(chosenQuantity)
     setReserved(true)
+    refetch()
   }
 
   return (
@@ -135,11 +150,14 @@ export default function ProductDetailPage() {
               </span>
             )}
             <h1 className="text-xl font-bold text-gray-900 mt-1">{product.title}</h1>
-            <p className="text-2xl font-bold text-orange-500 mt-2">{product.price} €</p>
+            <p className="text-2xl font-bold text-orange-500 mt-2">
+              {product.price} €
+              {isLot && <span className="text-sm font-medium text-gray-400"> / unité</span>}
+            </p>
 
             <div className="flex items-center gap-2 mt-3">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
-                {status.label}
+                {isLot && isAvailable ? `${product.availableQuantity} disponibles` : status.label}
               </span>
               <span className="text-xs text-gray-400">Publié le {product.createdAt}</span>
             </div>
@@ -152,8 +170,11 @@ export default function ProductDetailPage() {
               <div className="mt-6 rounded-xl bg-green-50 border border-green-100 p-4 text-center">
                 <p className="font-semibold text-green-700">Réservation envoyée ✓</p>
                 <p className="text-sm text-green-600 mt-1">
-                  Le vendeur va te contacter par téléphone pour confirmer la vente. Ton article reste
-                  réservé pendant 72h.
+                  {isLot
+                    ? `${reservedQuantity} unité${reservedQuantity > 1 ? 's' : ''} réservée${reservedQuantity > 1 ? 's' : ''} (${reservedQuantity * product.price} €). `
+                    : ''}
+                  Le vendeur va te contacter par téléphone pour confirmer la vente. Ta réservation est
+                  conservée pendant 72h.
                 </p>
                 <Link
                   to="/mes-reservations"
@@ -167,17 +188,57 @@ export default function ProductDetailPage() {
                 Tu es connecté avec le compte vendeur — connecte-toi avec un compte client pour réserver.
               </p>
             ) : (
-              <button
-                disabled={!isAvailable || reserving}
-                onClick={handleReserve}
-                className={`w-full mt-6 py-3 rounded-full font-semibold text-sm transition-colors ${
-                  isAvailable
-                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {reserving ? '...' : isAvailable ? 'Réserver cet article' : status.label}
-              </button>
+              <>
+                {isLot && isAvailable && (
+                  <div className="mt-6 rounded-xl bg-gray-50 border border-gray-100 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Quantité</span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setQuantity(Math.max(chosenQuantity - 1, 1))}
+                          disabled={chosenQuantity <= 1}
+                          className="w-9 h-9 rounded-full bg-white border border-gray-200 text-lg leading-none text-gray-700 disabled:opacity-40"
+                          aria-label="Moins"
+                        >
+                          −
+                        </button>
+                        <span className="w-8 text-center font-semibold text-gray-900">{chosenQuantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => setQuantity(Math.min(chosenQuantity + 1, maxQuantity))}
+                          disabled={chosenQuantity >= maxQuantity}
+                          className="w-9 h-9 rounded-full bg-white border border-gray-200 text-lg leading-none text-gray-700 disabled:opacity-40"
+                          aria-label="Plus"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      {product.availableQuantity} disponibles · Total :{' '}
+                      <span className="font-semibold text-gray-700">{chosenQuantity * product.price} €</span>
+                    </p>
+                  </div>
+                )}
+                <button
+                  disabled={!isAvailable || reserving}
+                  onClick={handleReserve}
+                  className={`w-full mt-4 py-3 rounded-full font-semibold text-sm transition-colors ${
+                    isAvailable
+                      ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {reserving
+                    ? '...'
+                    : isAvailable
+                      ? isLot
+                        ? `Réserver ${chosenQuantity} unité${chosenQuantity > 1 ? 's' : ''}`
+                        : 'Réserver cet article'
+                      : status.label}
+                </button>
+              </>
             )}
           </div>
         </div>

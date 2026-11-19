@@ -38,10 +38,15 @@ export default function ProductCard({ product }: Props) {
         <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 mb-1">
           {product.title}
         </p>
-        <p className="text-lg font-bold text-orange-500">{product.price} €</p>
+        <p className="text-lg font-bold text-orange-500">
+          {product.price} €
+          {product.isMultiple && <span className="text-xs font-medium text-gray-400"> / unité</span>}
+        </p>
         <div className="flex items-center justify-between mt-2">
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.classes}`}>
-            {status.label}
+            {product.isMultiple && product.status === 'AVAILABLE'
+              ? `${product.availableQuantity} disponibles`
+              : status.label}
           </span>
           <span className="text-xs text-gray-400">{product.createdAt}</span>
         </div>

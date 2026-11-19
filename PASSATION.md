@@ -95,7 +95,7 @@ Faire cette étape ensemble, à l'écran, une fois les comptes d'Aymeric créés
 
 - Stack : React 19, Vite, TypeScript, Tailwind v4, Supabase, `vite-plugin-pwa`.
 - Lancer en local : copier les variables de la section 3 dans un fichier `.env`, puis `npm install` et `npm run dev`. Compiler : `npm run build`.
-- Base de données : les scripts de `supabase/` sont à exécuter dans l'ordre suivant : `schema.sql`, `storage.sql`, `expiration.sql`, `admin-reservations.sql`, `multiple-images.sql`, `multi-device-push.sql`.
+- Base de données : les scripts de `supabase/` sont à exécuter dans l'ordre suivant : `schema.sql`, `storage.sql`, `expiration.sql`, `admin-reservations.sql`, `multiple-images.sql`, `multi-device-push.sql`, `multiple-quantities.sql` (produits en lot ; remplace `reserve_product`, `expire_old_reservations` et `get_admin_reservations` : ne pas relancer `expiration.sql` ni `admin-reservations.sql` après lui).
   > **Danger : `schema.sql` supprime puis recrée les tables `users`, `products`, `reservations` et `push_subscriptions`. Le relancer sur la base de production efface toutes les données.** À n'utiliser que sur un projet Supabase vide (nouvelle installation). Pour faire évoluer la base existante, écrire des scripts de migration qui ne suppriment rien.
   > Les autres scripts de `supabase/` ne contiennent pas de `drop table`, mais lisez chacun avant de l'exécuter.
 - La réservation passe uniquement par la fonction SQL `reserve_product()` (atomique). L'expiration passe par `pg_cron` (tâche `expire-reservations`, toutes les 15 min).

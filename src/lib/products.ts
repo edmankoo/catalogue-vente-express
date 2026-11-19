@@ -5,6 +5,11 @@ export interface Product {
   title: string
   price: number
   stock: number
+  /** Produit en lot : plusieurs clients peuvent en réserver chacun une partie. */
+  isMultiple: boolean
+  reservedQuantity: number
+  /** Unités encore réservables (stock - réservé pour un lot, 0 ou 1 sinon). */
+  availableQuantity: number
   status: ProductStatus
   category: string
   image: string

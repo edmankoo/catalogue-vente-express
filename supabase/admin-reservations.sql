@@ -2,6 +2,10 @@
 -- Catalogue Vente Express — détail client dans le dashboard admin
 -- À coller en une fois dans : Dashboard Supabase > SQL Editor > Run
 -- Ce script peut être relancé sans risque.
+--
+-- ATTENTION : get_admin_reservations() est redéfinie (avec la quantité) par
+-- multiple-quantities.sql. Sur une base où ce script a déjà été exécuté,
+-- NE PAS relancer celui-ci.
 -- ============================================================
 
 -- La jointure reservations -> users passait par PostgREST, qui applique
