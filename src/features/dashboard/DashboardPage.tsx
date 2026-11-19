@@ -223,13 +223,25 @@ export default function DashboardPage() {
       }
 
       if (editingId) {
-        await supabase.from('products').update(payload).eq('id', editingId)
+        const { error: updateError } = await supabase
+          .from('products')
+          .update(payload)
+          .eq('id', editingId)
+        if (updateError) {
+          setFormError(`Enregistrement impossible : ${updateError.message}`)
+          return
+        }
       } else {
-        const { data: newProduct } = await supabase
+        const { data: newProduct, error: insertError } = await supabase
           .from('products')
           .insert({ stock: 1, ...payload, status: 'AVAILABLE' })
           .select()
           .single()
+
+        if (insertError) {
+          setFormError(`Enregistrement impossible : ${insertError.message}`)
+          return
+        }
 
         if (newProduct) {
           await supabase.functions.invoke('send-product-notifications', {
