@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { CATEGORIES } from '../../lib/products'
 import ProductCard from '../../components/ProductCard'
 import NotificationSubscribeButton from '../../components/NotificationSubscribeButton'
+import NotificationInvite from '../../components/NotificationInvite'
 import { useAuth } from '../auth/AuthContext'
 import { useProducts } from './useProducts'
 
@@ -131,6 +132,8 @@ export default function CataloguePage() {
 
       {/* Contenu */}
       <main className="max-w-5xl mx-auto px-4 py-6">
+        <NotificationInvite />
+
         {/* Titre de section */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-base font-semibold text-gray-700">

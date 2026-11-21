@@ -3,6 +3,7 @@ import {
   checkNotificationSubscription,
   isPushSupported,
   needsIosInstall,
+  PUSH_CHANGE_EVENT,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
 } from '../lib/pushNotifications'
@@ -36,9 +37,17 @@ export default function NotificationSubscribeButton() {
     }
 
     checkSubscription()
+    // La bannière d'invitation peut abonner l'appareil sans passer par ce bouton.
+    const onChange = () => {
+      checkNotificationSubscription().then((value) => {
+        if (!cancelled) setIsSubscribed(value)
+      })
+    }
+    window.addEventListener(PUSH_CHANGE_EVENT, onChange)
 
     return () => {
       cancelled = true
+      window.removeEventListener(PUSH_CHANGE_EVENT, onChange)
     }
   }, [supported])
 

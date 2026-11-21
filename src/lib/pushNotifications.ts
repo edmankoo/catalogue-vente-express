@@ -4,6 +4,9 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
 
 const SW_READY_TIMEOUT_MS = 5000
 
+// Signale aux composants montés (bouton d'en-tête, bannière) que l'état a changé.
+export const PUSH_CHANGE_EVENT = 'push-subscription-changed'
+
 export function isPushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
@@ -94,6 +97,7 @@ export async function subscribeToPushNotifications() {
     })
 
     if (error) throw error
+    window.dispatchEvent(new Event(PUSH_CHANGE_EVENT))
     return true
   } catch (error) {
     console.error('Erreur inscription notifications:', error)
@@ -131,6 +135,7 @@ export async function unsubscribeFromPushNotifications() {
       if (error) throw error
     }
 
+    window.dispatchEvent(new Event(PUSH_CHANGE_EVENT))
     return true
   } catch (error) {
     console.error('Erreur désinscription notifications:', error)
