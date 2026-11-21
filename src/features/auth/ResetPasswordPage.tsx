@@ -10,6 +10,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const { updatePassword } = useAuth()
   const navigate = useNavigate()
@@ -85,9 +86,18 @@ export default function ResetPasswordPage() {
             <h1 className="font-semibold text-gray-800 text-center mb-1">Nouveau mot de passe</h1>
 
             <div>
-              <label className="text-xs font-medium text-gray-500">Nouveau mot de passe</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-500">Nouveau mot de passe</label>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? 'Masquer' : 'Afficher'}
+                </button>
+              </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={6}
                 autoComplete="new-password"
@@ -100,7 +110,7 @@ export default function ResetPasswordPage() {
             <div>
               <label className="text-xs font-medium text-gray-500">Confirmer le mot de passe</label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={6}
                 autoComplete="new-password"

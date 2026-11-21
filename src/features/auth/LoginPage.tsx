@@ -241,15 +241,13 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-gray-500">Mot de passe</label>
-                {mode === 'inscription' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? 'Masquer' : 'Afficher'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? 'Masquer' : 'Afficher'}
+                </button>
               </div>
               <input
                 type={showPassword ? 'text' : 'password'}
